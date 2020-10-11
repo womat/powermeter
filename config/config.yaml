@@ -1,0 +1,102 @@
+# query the client data
+timeperiod: 5 # time in seconds
+debug:
+  # log file e.g. /tmp/emu.log; stderr; stdout
+  # default: stderr
+  file: stderr
+  # flag: (default: standard)
+  #       trace    >> Warning | Info | Error | Fatal | Debug | Trace
+  #       debug    >> Warning | Info | Error | Fatal | Debug
+  #       standard >> Warning | Info | Error | Fatal
+  flag: debug
+clients:
+  # key >> name of device
+  #   type: mbclient | mbgateway | fritz!powerline
+  #   connection: connectionstring eg: TCP 192.168.65.197:502  DeviceId:1 Timeout:500 (timeout in ms (default 1000ms)
+  #   pollingrate: in seconds (default 60) if parameter mode is set to request, the pollingrate can be quite high (eg 300s)
+  #   mode: (default polling)
+  #         request >> data are updated with each request
+  #         polling >> data are updated at the polling rate (parameter pollingrate)
+  #   deviceid: [1-247] (default 1)
+  primarymeter:
+    type: mbclient
+    connection: TCP 192.168.65.197:502 DeviceId:1 Retry:2 Timeout:100
+    pollingrate: 2
+    mode: request
+    deviceid: 1
+    register:
+      I_L1: 'Addr:58 uint32 SF:-3'
+      I_L2: 'Addr:62 uint32 SF:-3'
+      I_L3: 'Addr:66 uint32 SF:-3'
+      E_EXP: 'Addr:8 uint64 SF:0'
+      E_IMP: 'E_IMP - E_EXP'
+      E: 'Addr:16 uint64 SF:0'
+      F_AC: 'Addr:76 uint16 SF:-2'
+      P_L1: 'Addr:40 uint32 SF:0'
+      P_L2: 'Addr:44 uint32 SF:0'
+      P_L3: 'Addr:48 uint32 SF:0'
+      P: 'Addr:36 uint32 SF:0'
+      F: 'Addr:36 uint32 SF:0'
+      COSPHI_L1: 'Addr:70 sint16 SF:-4'
+      COSPHI_L2: 'Addr:72 sint16 SF:-4'
+      COSPHI_L3: 'Addr:74 sint16 SF:-4'
+      U_L1_L2: 'Addr:52 uint16 SF:-1'
+      U_L1_N: 'Addr:52 uint16 SF:-1'
+      U_L2_L3: 'Addr:54 uint16 SF:-1'
+      U_L2_N: 'Addr:54 uint16 SF:-1'
+      U_L3_L1: 'Addr:56 uint16 SF:-1'
+      U_L3_N: 'Addr:56 uint16 SF:-1'
+  heatingrod:
+    type: mbclient
+    connection: TCP 192.168.65.197:502 DeviceId:1 Retry:2 Timeout:100
+    pollingrate: 2
+    mode: request
+    deviceid: 1
+    register:
+      E: 'Addr:16 uint64 SF:0'
+  heatpump:
+    type: mbgateway
+    connection: HTTP http://raspberryz:8080 Retry:2 Timeout:500
+    pollingrate: 2
+    mode: request
+    deviceid: 2
+    register:
+      unknown: 'Addr:18 uint16 quantity:1'
+      Device Identifier: 'Addr:768 uint16 quantity:1'
+      SerialNumber: 'Addr:4176 uint16 quantity:2'
+      Smartmeter Data: 'Addr:4096 uint16 quantity:64'
+  dryer:
+    type: fritz!powerline
+    connection: HTTP http://fritz.box Timeout:500
+    pollingrate: 15
+    mode: request
+    deviceid: 3
+    register:
+      unknown: 'Addr:18 Value:285 uint16'
+      Device Identifier: 'Addr:768 Value:117 uint16'
+      SerialNumber: 'Addr:4176 Value:88888888 uint32'
+
+# webserver configuration
+webserver:
+  active: yes
+  port: 4000
+  # enable/disable webservices
+  webservices:
+    version: true
+    currentdata: true
+    data: true
+    download: true
+csv:
+  path: ./ #/var/uxsol
+  filenameformat: Eyyyymm.csv
+  seperator: ;
+  decimalseperator: ","
+  dateformat: yyyy-mm-dd HH:MM:SS
+influx:
+  Host: 192.168.65.41
+  Port: 8086
+  User: admin
+  password:
+  location: Wullersdorf
+  database: myhome_test
+
