@@ -2,119 +2,163 @@ package main
 
 import (
 	"fmt"
+	"path"
+	"powermeter/pkg/csv"
 	"time"
 
 	"powermeter/global"
 	_ "powermeter/pkg/config"
 	"powermeter/pkg/debug"
 	"powermeter/pkg/energy"
+	"powermeter/pkg/fritz"
 	"powermeter/pkg/mbclient"
 	"powermeter/pkg/mbgw"
 )
 
-type Energy struct {
-	from  time.Time
-	to    time.Time
-	E     float64
-	Power float64
-}
-type HistoryEnergy struct {
-	E        []Energy
-	lastE    float64
-	lastTime time.Time
+const Delta = "delta"
+
+type Value struct {
+	from      time.Time
+	to        time.Time
+	value     float64
+	delta     float64
+	lastValue float64
+	lastTime  time.Time
 }
 
-type Client struct {
-	History HistoryEnergy
-	Client  energy.Meter
+type Meter struct {
+	Measurand map[string]Value
+	Meter     energy.Meter
 }
 
 func main() {
-	Clients := map[string]Client{}
-	for n, client := range global.Config.Clients {
-		switch t := client.Type; t {
+	Meters := map[string]Meter{}
+
+	for name, meter := range global.Config.Meter {
+		switch t := meter.Type; t {
 		case "mbclient":
 			c := mbclient.NewClient()
-			if err := c.Listen(client.Connection); err != nil {
-				debug.Errorlog.Printf("error to start modbus client %v: %v\n", client.Connection, err)
+			if err := c.Listen(meter.Connection); err != nil {
+				debug.ErrorLog.Printf("error to start modbus client %v: %v\n", meter.Connection, err)
 				return
 			}
-			Clients[n] = Client{Client: c,
-				History: HistoryEnergy{E: []Energy{}}}
 
+			Meters[name] = Meter{Meter: c, Measurand: map[string]Value{}}
 		case "mbgateway":
 			c := mbgw.NewClient()
-			if err := c.Listen(client.Connection); err != nil {
-				debug.Errorlog.Printf("error to start modbus gateway client %v: %v\n", client.Connection, err)
+			if err := c.Listen(meter.Connection); err != nil {
+				debug.ErrorLog.Printf("error to start modbus gateway client %v: %v\n", meter.Connection, err)
 				return
 			}
-			Clients[n] = Client{Client: c,
-				History: HistoryEnergy{E: []Energy{}}}
 
+			Meters[name] = Meter{Meter: c, Measurand: map[string]Value{}}
 		case "fritz!powerline":
+			c := fritz.NewClient()
+			if err := c.Listen(meter.Connection); err != nil {
+				debug.ErrorLog.Printf("error to start fritz!powerline client %v: %v\n", meter.Connection, err)
+				return
+			}
+			Meters[name] = Meter{Meter: c, Measurand: map[string]Value{}}
 		default:
-			debug.Warninglog.Printf("client type %v is not supported\n", t)
+			debug.WarningLog.Printf("client type %v is not supported\n", t)
 		}
+
+		Meters[name].Meter.AddMeasurand(meter.Measurand)
 	}
 
 	// TODO: Garbage Collector (cleanup HistoryEnergy)
 
-	ticker := time.NewTicker(15 * time.Second)
+	ticker := time.NewTicker(global.Config.TimerPeriod)
 	defer ticker.Stop()
 
 	for {
-
-		for name, c := range Clients {
-			t := time.Now()
-			e, _ := c.Client.GetEnergyCounter()
-
-			if c.History.lastE > 0 {
-				energy := Energy{
-					from:  c.History.lastTime,
-					to:    t,
-					E:     e,
-					Power: (e - c.History.lastE) / t.Sub(c.History.lastTime).Seconds() * 60 * 60,
+		t := time.Now()
+		for name, meter := range Meters {
+			for _, measurandName := range meter.Meter.ListMeasurand() {
+				mparam, ok := global.Config.Measurand[measurandName]
+				if !ok {
+					continue
 				}
 
-				if name == "primarymeter" || name == "heatpump" {
-					fmt.Println(name, energy.Power, (e - c.History.lastE))
+				if _, ok := meter.Measurand[measurandName]; !ok {
+					meter.Measurand[measurandName] = Value{}
 				}
-				c.History.E = append(c.History.E, energy)
+
+				tempValue := meter.Measurand[measurandName]
+				t := time.Now()
+				v, _ := meter.Meter.GetMeteredValue(measurandName)
+
+				if t.Sub(tempValue.lastTime).Hours() > 24*365*10 {
+					tempValue.lastTime = t
+				}
+
+				if mparam.Type == Delta && v == 0 {
+					v = tempValue.lastValue
+				}
+
+				tempValue.to = t
+				tempValue.value = v
+				tempValue.from = tempValue.lastTime
+
+				if tempValue.lastValue > 0 && mparam.Type == Delta {
+
+					tempValue.delta = (v - tempValue.lastValue) / t.Sub(tempValue.lastTime).Hours()
+				}
+
+				tempValue.lastValue = v
+				tempValue.lastTime = t
+				meter.Measurand[measurandName] = tempValue
+			}
+			Meters[name] = meter
+		}
+
+		record := map[string]interface{}{}
+		for name, meter := range Meters {
+			for measurandName, measurand := range meter.Measurand {
+				headerName := name + "-" + measurandName
+				record["From"] = measurand.from
+				record["To"] = measurand.to
+				record[headerName] = measurand.value
+				if m, ok := global.Config.Measurand[measurandName]; ok && m.Type == Delta {
+					record[headerName+"-delta"] = measurand.delta
+				}
+			}
+		}
+
+		var err error
+		func() {
+			csvFileName := path.Join(global.Config.Csv.Path, csv.FileName(global.Config.Csv.FilenameFormat, time.Now()))
+			csvWriter := csv.New()
+			csvWriter.ValueSeparator = rune(global.Config.Csv.Separator[0])
+			csvWriter.DecimalSeparator = rune(global.Config.Csv.DecimalSeparator[0])
+			if err = csvWriter.Open(csvFileName); err != nil {
+				debug.ErrorLog.Printf("error open file %v: %v", csvFileName, err)
+				err = fmt.Errorf("error open file %v: %v", csvFileName, err)
+				return
+			}
+			defer csvWriter.Close()
+
+			if csvWriter.IsNewFile() {
+				if err = csvWriter.WriteOnlyHeader(record); err != nil {
+					err = fmt.Errorf("error write header %v: %v", record, err)
+					return
+				}
 			}
 
-			c.History.lastE = e
-			c.History.lastTime = t
-			Clients[name] = c
-		}
+			var r []map[string]interface{}
+			r = append(r, record)
 
-		select {
-		case <-ticker.C:
+			if err = csvWriter.Write(r); err != nil {
+				err = fmt.Errorf("error write csv file: %v", err)
+				return
+			}
+			return
+		}()
+
+		if err != nil {
+			debug.ErrorLog.Println(err)
 		}
+		debug.InfoLog.Println("runtime: ", time.Since(t))
+		<-ticker.C
 	}
 }
-
-/*
-func (c *Client) GetLastTime() (lt time.Time) {
-	for _, h := range c.History.E {
-		if h.to.After(lt) {
-			lt = h.to
-		}
-	}
-
-	return
-}
-
-func (c *Client) GetLastECounter() (ec float64) {
-	var lt time.Time
-	for _, h := range c.History.E {
-		if h.to.After(lt) {
-			lt = h.to
-			ec = h.E
-		}
-	}
-
-	return
-}
-
-
-*/

@@ -1,4 +1,4 @@
-package energy
+package fritz
 
 import (
 	"io"

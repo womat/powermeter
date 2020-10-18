@@ -73,12 +73,12 @@ const (
 )
 
 var (
-	Warninglog *log.Logger
-	Infolog    *log.Logger
-	Errorlog   *log.Logger
-	Debuglog   *log.Logger
-	Tracelog   *log.Logger
-	Fatallog   *log.Logger
+	WarningLog *log.Logger
+	InfoLog    *log.Logger
+	ErrorLog   *log.Logger
+	DebugLog   *log.Logger
+	TraceLog   *log.Logger
+	FatalLog   *log.Logger
 )
 
 func init() {
@@ -112,10 +112,10 @@ func SetDebug(w io.Writer, flag int) {
 		fatalHandle = w
 	}
 
-	Infolog = log.New(warningHandle, "INFO: ", log.Ldate|log.Lmicroseconds|log.Lshortfile|log.Lmsgprefix)
-	Warninglog = log.New(infoHandle, "WARNING: ", log.Ldate|log.Lmicroseconds|log.Lshortfile|log.Lmsgprefix)
-	Errorlog = log.New(errorHandle, "ERROR: ", log.Ldate|log.Lmicroseconds|log.Lshortfile|log.Lmsgprefix)
-	Debuglog = log.New(debugHandle, "DEBUG: ", log.Ldate|log.Lmicroseconds|log.Lshortfile|log.Lmsgprefix)
-	Tracelog = log.New(traceHandle, "TRACE: ", log.Ldate|log.Lmicroseconds|log.Lshortfile|log.Lmsgprefix)
-	Fatallog = log.New(fatalHandle, "FATAL: ", log.Ldate|log.Lmicroseconds|log.Llongfile|log.Lmsgprefix)
+	InfoLog = log.New(warningHandle, "INFO: ", log.Ldate|log.Lmicroseconds|log.Lshortfile|log.Lmsgprefix)
+	WarningLog = log.New(infoHandle, "WARNING: ", log.Ldate|log.Lmicroseconds|log.Lshortfile|log.Lmsgprefix)
+	ErrorLog = log.New(errorHandle, "ERROR: ", log.Ldate|log.Lmicroseconds|log.Lshortfile|log.Lmsgprefix)
+	DebugLog = log.New(debugHandle, "DEBUG: ", log.Ldate|log.Lmicroseconds|log.Lshortfile|log.Lmsgprefix)
+	TraceLog = log.New(traceHandle, "TRACE: ", log.Ldate|log.Lmicroseconds|log.Lshortfile|log.Lmsgprefix)
+	FatalLog = log.New(fatalHandle, "FATAL: ", log.Ldate|log.Lmicroseconds|log.Llongfile|log.Lmsgprefix)
 }

@@ -3,11 +3,24 @@ package mbclient
 import (
 	"encoding/binary"
 	"errors"
+	"math"
+	"regexp"
+	"strconv"
+	"strings"
 	"time"
 
 	"github.com/goburrow/modbus"
+)
 
-	"powermeter/pkg/tools"
+const (
+	_nil = iota
+	_sint16
+	_sint32
+	_sint64
+	_uint16
+	_uint32
+	_uint64
+	_float32
 )
 
 // Client structure contains all Properties of a connection
@@ -16,37 +29,98 @@ type Client struct {
 	timeout          time.Duration
 	deviceId         uint8
 	maxRetries       int
+	measurand        map[string]measurandParam
+}
+
+type measurandParam struct {
+	address     uint16
+	format      int
+	scaleFactor int
 }
 
 func NewClient() (c *Client) {
-	return &Client{}
+	return &Client{
+		measurand: map[string]measurandParam{},
+	}
 }
 
 // Listen starts the go function to receive data
 func (c *Client) Listen(connectionString string) (err error) {
-	c.connectionString, c.deviceId, c.timeout, c.maxRetries = tools.GetConnectionDeviceIdTimeOut(connectionString)
+	getField(&c.connectionString, connectionString, "connection")
+	getField(&c.deviceId, connectionString, "deviceid")
+	getField(&c.timeout, connectionString, "timeout")
+	getField(&c.maxRetries, connectionString, "maxretries")
 	return
 }
 
-func (c *Client) GetEnergyCounter() (e float64, err error) {
+func (c *Client) AddMeasurand(measurand map[string]string) {
+	for n, m := range measurand {
+		p := measurandParam{
+			format: _uint16,
+		}
+		getField(&p.address, m, "address")
+		getField(&p.scaleFactor, m, "sf")
+		getField(&p.format, m, "format")
+		c.measurand[n] = p
+	}
+}
+
+func (c *Client) ListMeasurand() (names []string) {
+	for n := range c.measurand {
+		names = append(names, n)
+	}
+	return
+}
+
+func (c *Client) GetMeteredValue(measurand string) (e float64, err error) {
 	var retryCounter int
 	var data []byte
-	for retryCounter = 0; retryCounter <= c.maxRetries; retryCounter++ {
 
-		data, err = c.get(41000-1, 4)
-		if err == nil {
-			break
+	if m, ok := c.measurand[measurand]; ok {
+		for retryCounter = 0; retryCounter <= c.maxRetries; retryCounter++ {
+			var v float64
+			q := quantity(m.format)
+			data, err = c.get(m.address, q)
+			if err == nil {
+				switch d := data[0 : q*2]; m.format {
+				case _sint16:
+					v = float64(int16(binary.BigEndian.Uint16(d)))
+				case _sint32:
+					v = float64(int32(binary.BigEndian.Uint32(d)))
+				case _sint64:
+					v = float64(int64(binary.BigEndian.Uint64(d)))
+				case _uint16:
+					v = float64(binary.BigEndian.Uint16(d))
+				case _uint32:
+					v = float64(binary.BigEndian.Uint32(d))
+				case _uint64:
+					v = float64(binary.BigEndian.Uint64(d))
+				case _float32:
+					v = float64(math.Float32frombits(binary.BigEndian.Uint32(d)))
+				}
+				return v * math.Pow10(m.scaleFactor), nil
+			}
+
+			time.Sleep(10 * time.Millisecond)
+			errorLog.Printf("error to receive client data: %v\n", err)
 		}
-
-		time.Sleep(10 * time.Millisecond)
-		errorlog.Printf("error to receive client data: %v\n", err)
 	}
 
-	e = float64(binary.BigEndian.Uint64(data[0:8]))
 	return
 }
 
-func (c *Client) get(address, quantity uint16) (data []byte, err error) {
+func quantity(format int) int {
+	switch format {
+	case _sint16, _uint16:
+		return 1
+	case _sint32, _uint32, _float32:
+		return 2
+	case _sint64, _uint64:
+		return 4
+	}
+	return 0
+}
+func (c *Client) get(address uint16, quantity int) (data []byte, err error) {
 	done := make(chan bool, 1)
 
 	//  fills register map with received values or set variable err with error information
@@ -70,7 +144,7 @@ func (c *Client) get(address, quantity uint16) (data []byte, err error) {
 
 		client := modbus.NewClient(clientHandler)
 		// TODO registers should be a parameter in the config file
-		data, err = client.ReadHoldingRegisters(address, quantity)
+		data, err = client.ReadHoldingRegisters(address, uint16(quantity))
 	}()
 
 	// wait for Modbus Data
@@ -85,4 +159,81 @@ func (c *Client) get(address, quantity uint16) (data []byte, err error) {
 
 func (c *Client) Close() (err error) {
 	return
+}
+
+func getField(v interface{}, connectionString, param string) {
+	switch param {
+	case "baseUrl", "connection":
+		fields := strings.Fields(connectionString)
+		for _, field := range fields {
+			// check if connection string is valid
+			if regexp.MustCompile(`^https?://.*$`).MatchString(field) || regexp.MustCompile(`^[\d]{1,3}\.[\d]{1,3}\.[\d]{1,3}\.[\d]{1,3}:[\d]{1,5}$`).MatchString(field) {
+				switch x := v.(type) {
+				case *string:
+					*x = field
+				}
+				return
+			}
+		}
+	case "format":
+		fields := strings.Fields(connectionString)
+		var i int
+		for _, field := range fields {
+
+			switch field {
+			case "sint16":
+				i = _sint16
+			case "sint32":
+				i = _sint32
+			case "sint64":
+				i = _sint64
+			case "uint16":
+				i = _uint16
+			case "uint32":
+				i = _uint32
+			case "uint64":
+				i = _uint64
+			case "float32":
+				i = _float32
+			default:
+				continue
+			}
+
+			switch x := v.(type) {
+			case *int:
+				*x = i
+			}
+			return
+		}
+
+	default:
+		fields := strings.Fields(connectionString)
+		for _, field := range fields {
+			parts := strings.Split(field, ":")
+			if parts[0] != param || len(parts) != 2 {
+				continue
+			}
+
+			value := parts[1]
+
+			switch x := v.(type) {
+			case *string:
+				*x = value
+			case *int:
+				*x, _ = strconv.Atoi(value)
+			case *uint16:
+				i, _ := strconv.Atoi(value)
+				*x = uint16(i)
+			case *uint8:
+				i, _ := strconv.Atoi(value)
+				*x = uint8(i)
+			case *time.Duration:
+				*x = time.Second
+				if i, err := strconv.Atoi(value); err == nil {
+					*x = time.Duration(i) * time.Millisecond
+				}
+			}
+			return
+		}
+	}
 }

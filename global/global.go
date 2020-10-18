@@ -15,11 +15,6 @@ import (
 // but we keep the correct syntax.
 const VERSION = "0.0.0+20201008"
 
-const (
-	Polling = iota
-	Request
-)
-
 type DebugConf struct {
 	File io.WriteCloser
 	Flag int
@@ -33,10 +28,14 @@ type RegisterConf struct {
 	Value   interface{}
 }
 
-type ClientConf struct {
+type Meter struct {
 	Type       string
 	Connection string
-	Register   map[string]RegisterConf
+	Measurand  map[string]string
+}
+
+type Measurand struct {
+	Name, Type string
 }
 
 type WebserverConf struct {
@@ -47,9 +46,9 @@ type WebserverConf struct {
 
 type CsvConf struct {
 	Path             string
-	Filenameformat   string
-	Seperator        string
-	Decimalseperator string
+	FilenameFormat   string
+	Separator        string
+	DecimalSeparator string
 	Dateformat       string
 }
 
@@ -61,9 +60,10 @@ type InfluxConf struct {
 }
 
 type Configuration struct {
-	Timerperiod time.Duration
+	TimerPeriod time.Duration
 	Debug       DebugConf
-	Clients     map[string]ClientConf
+	Meter       map[string]Meter
+	Measurand   map[string]Measurand
 	Webserver   WebserverConf
 	Csv         CsvConf
 	Influx      InfluxConf
@@ -74,7 +74,8 @@ var Config Configuration
 
 func init() {
 	Config = Configuration{
-		Clients:   map[string]ClientConf{},
+		Meter:     map[string]Meter{},
+		Measurand: map[string]Measurand{},
 		Webserver: WebserverConf{Webservices: map[string]bool{}},
 	}
 }

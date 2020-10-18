@@ -1,7 +1,9 @@
 package energy
 
 type Meter interface {
-	GetEnergyCounter() (float64, error)
 	Listen(string) error
+	AddMeasurand(measurand map[string]string)
+	ListMeasurand() []string
+	GetMeteredValue(string) (float64, error)
 	Close() error
 }

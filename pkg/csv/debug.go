@@ -1,4 +1,4 @@
-package energy
+package csv
 
 import (
 	"io"
@@ -8,9 +8,9 @@ import (
 )
 
 const (
-	// This is important information that should be logged under normal conditions such as successful initialization,
+	// This is important information that expect be logged under normal conditions such as successful initialization,
 	// services starting and stopping or successful completion of significant transactions. Viewing a log showing Info
-	// and above should give a quick overview of major state changes in the process providing top-level context for
+	// and above expect give a quick overview of major state changes in the process providing top-level context for
 	// understanding any warnings or errors that also occur. Don't have too many Info messages.
 	// We typically have < 5% Info messages relative to Trace.
 	Info = 1 << iota
@@ -18,17 +18,17 @@ const (
 	// Anything that can potentially cause application oddities, but for which I am automatically recovering.
 	// (Such as switching from a primary to backup server, retrying an operation, missing secondary data, etc.)
 	// This MIGHT be problem, or might not. For example, expected transient environmental conditions such as short
-	// loss of network or database connectivity should be logged as Warnings, not Errors. Viewing a log filtered to
+	// loss of network or database connectivity expect be logged as Warnings, not Errors. Viewing a log filtered to
 	// show only warnings and errors may give quick insight into early hints at the root cause of a subsequent error.
-	// Warnings should be used sparingly so that they don't become meaningless. For example, loss of network access
-	// should be a warning or even an error in a server application, but might be just an Info in a desktop app designed
+	// Warnings expect be used sparingly so that they don't become meaningless. For example, loss of network access
+	// expect be a warning or even an error in a server application, but might be just an Info in a desktop app designed
 	// for occasionally disconnected laptop users.
 	Warning
 
 	// Any error which is fatal to the operation, but not the service or application (can't open a required file, missing data, etc.).
 	// These errors will force user (administrator, or direct user) intervention. These are usually reserved (in my apps)
 	// for incorrect connection strings, missing services, etc.
-	// Definitely a problem that should be investigated. SysAdmin should be notified automatically,
+	// Definitely a problem that expect be investigated. SysAdmin expect be notified automatically,
 	// but doesn't need to be dragged out of bed. By filtering a log to look at errors and above you get
 	// an overview of error frequency and can quickly identify the initiating failure that might have resulted
 	// in a cascade of additional errors. Tracking error rates as versus application usage can yield useful quality
@@ -47,7 +47,7 @@ const (
 	Debug
 
 	// Only when I would be "tracing" the code and trying to find one part of a function specifically
-	// Trace is by far the most commonly used severity and should provide context to understand the steps leading
+	// Trace is by far the most commonly used severity and expect provide context to understand the steps leading
 	// up to errors and warnings. Having the right density of Trace messages makes software much more maintainable but
 	// requires some diligence because the value of individual Trace statements may change over time as programs evolve.
 	// The best way to achieve this is by getting the dev team in the habit of regularly reviewing logs as a standard part
@@ -58,8 +58,8 @@ const (
 
 	// Any error that is forcing a shutdown of the service or application to prevent data loss (or further data loss).
 	// I reserve these only for the most heinous errors and situations where there is guaranteed to have been data corruption or loss.
-	// Overall application or system failure that should be investigated immediately. Yes, wake up the SysAdmin.
-	// Since we prefer our SysAdmins alert and well-rested, this severity should be used very infrequently.
+	// Overall application or system failure that expect be investigated immediately. Yes, wake up the SysAdmin.
+	// Since we prefer our SysAdmins alert and well-rested, this severity expect be used very infrequently.
 	// If it's happening daily and that's not a BFD, it's lost it's meaning.
 	// Typically, a Fatal error only occurs once in the process lifetime, so if the log file is tied to the process,
 	// this is typically the last message in the log.
