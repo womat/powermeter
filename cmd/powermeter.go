@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"path"
 	"powermeter/pkg/csv"
+	"powermeter/pkg/influx"
 	"time"
 
 	"powermeter/global"
@@ -79,7 +80,6 @@ func main() {
 				if !ok {
 					continue
 				}
-
 				if _, ok := meter.Measurand[measurandName]; !ok {
 					meter.Measurand[measurandName] = Value{}
 				}
@@ -91,7 +91,6 @@ func main() {
 				if t.Sub(tempValue.lastTime).Hours() > 24*365*10 {
 					tempValue.lastTime = t
 				}
-
 				if mparam.Type == Delta && v == 0 {
 					v = tempValue.lastValue
 				}
@@ -101,7 +100,6 @@ func main() {
 				tempValue.from = tempValue.lastTime
 
 				if tempValue.lastValue > 0 && mparam.Type == Delta {
-
 					tempValue.delta = (v - tempValue.lastValue) / t.Sub(tempValue.lastTime).Hours()
 				}
 
@@ -145,7 +143,7 @@ func main() {
 				}
 			}
 
-			var r []map[string]interface{}
+			r := make([]map[string]interface{}, 0, 1)
 			r = append(r, record)
 
 			if err = csvWriter.Write(r); err != nil {
@@ -158,6 +156,32 @@ func main() {
 		if err != nil {
 			debug.ErrorLog.Println(err)
 		}
+
+		func(m map[string]Meter) {
+			influxClient := influx.New()
+			influxClient.Open(global.Config.Influx.ServerURL, fmt.Sprintf("%s:%s", global.Config.Influx.User, global.Config.Influx.Password), global.Config.Influx.Database)
+			defer influxClient.Close()
+
+			influxClient.AddTag("location", global.Config.Influx.Location)
+			for name, meter := range Meters {
+				for measurandName, measurand := range meter.Measurand {
+					record := map[string]interface{}{}
+					record["From"] = measurand.from
+					record["To"] = measurand.to
+					record[measurandName] = measurand.value
+					if m, ok := global.Config.Measurand[measurandName]; ok && m.Type == Delta {
+						record[measurandName+" avg"] = measurand.delta
+					}
+					records := make([]map[string]interface{}, 1, len(m))
+					records[0] = record
+					influxClient.SetMeasurement(name)
+					influxClient.SetTime(measurand.to)
+					_ = influxClient.Write(records)
+				}
+			}
+
+		}(Meters)
+
 		debug.InfoLog.Println("runtime: ", time.Since(t))
 		<-ticker.C
 	}

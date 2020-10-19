@@ -53,10 +53,12 @@ type CsvConf struct {
 }
 
 type InfluxConf struct {
-	Port     int
-	User     string
-	Password string
-	Location string
+	ServerURL   string
+	User        string
+	Password    string
+	Location    string
+	Database    string
+	Measurement string
 }
 
 type Configuration struct {

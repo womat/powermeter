@@ -79,13 +79,12 @@ func (c *Writer) Write(records []map[string]interface{}) (err error) {
 }
 
 func (c *Writer) WriteOnlyHeader(header map[string]interface{}) (err error) {
-	var csvRecords [][]string
-	var csvHeader []string
-
 	if c.header != nil {
 		return errorHeaderAlreadyExists
 	}
 
+	csvRecords := make([][]string, 0, 1)
+	csvHeader := make([]string, 0, len(header))
 	c.writer.Comma = c.ValueSeparator
 	c.writer.UseCRLF = c.RowSeparator == CRLF
 
@@ -108,11 +107,10 @@ func (c *Writer) WriteOnlyHeader(header map[string]interface{}) (err error) {
 func (c *Writer) write(records []map[string]interface{}) (err error) {
 	c.writer.Comma = c.ValueSeparator
 	c.writer.UseCRLF = c.RowSeparator == CRLF
-
-	var csvRecords [][]string
+	csvRecords := make([][]string, 0, len(records))
 
 	for _, row := range records {
-		var csvHeader []string
+		csvHeader := make([]string, 0, len(row))
 		for name := range row {
 			csvHeader = append(csvHeader, name)
 		}
@@ -125,7 +123,7 @@ func (c *Writer) write(records []map[string]interface{}) (err error) {
 			return errHeaderDoesntMatch
 		}
 
-		var csvRow []string
+		csvRow := make([]string, 0, len(csvHeader))
 		for _, column := range csvHeader {
 			var valueString string
 			switch v := row[column].(type) {
@@ -137,9 +135,7 @@ func (c *Writer) write(records []map[string]interface{}) (err error) {
 				valueString = strconv.Itoa(v)
 			case float32, float64:
 				valueString = float2string(c.DecimalSeparator, v)
-
 			}
-
 			csvRow = append(csvRow, valueString)
 		}
 
@@ -153,7 +149,6 @@ func (c *Writer) write(records []map[string]interface{}) (err error) {
 
 	debugLog.Printf("Filename: %s written records: %v\n", c.fileName, len(csvRecords))
 	return
-
 }
 
 func (c *Writer) IsNewFile() bool {
@@ -207,4 +202,23 @@ func isEqual(a interface{}, b interface{}) bool {
 	expect, _ := json.Marshal(a)
 	got, _ := json.Marshal(b)
 	return string(expect) == string(got)
+}
+
+func mapKey(m map[string]interface{}) []string {
+	keys := make([]string, 0, len(m))
+	for key := range m {
+		keys = append(keys, key)
+	}
+	sort.Strings(keys)
+	return keys
+}
+
+func mapValue(m map[string]interface{}, v []interface{}) {
+	keys := mapKey(m)
+	values := make([]interface{}, 0, len(keys))
+	for _, key := range keys {
+		if v, ok := m[key]; ok {
+			values = append(values, v)
+		}
+	}
 }
