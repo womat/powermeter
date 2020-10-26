@@ -26,7 +26,7 @@ func init() {
 			Connection string
 			Measurand  map[string]string
 		}
-		Measurand map[string]global.Measurand
+		Measurand map[string]map[string]string
 		Webserver global.WebserverConf
 		Csv       global.CsvConf
 		Influx    global.InfluxConf
@@ -101,10 +101,7 @@ func init() {
 	}
 
 	for name, m := range configFile.Measurand {
-		global.Config.Measurand[name] = global.Measurand{
-			Type: m.Type,
-			Name: m.Name,
-		}
+		global.Config.Measurand[name] = m
 	}
 
 	global.Config.TimerPeriod = 5 * time.Second

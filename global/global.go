@@ -13,7 +13,7 @@ import (
 //
 // VERSION differs from semantic versioning as described in https://semver.org/
 // but we keep the correct syntax.
-const VERSION = "0.0.0+20201008"
+const VERSION = "1.0.0+20201026"
 
 type DebugConf struct {
 	File io.WriteCloser
@@ -34,10 +34,13 @@ type Meter struct {
 	Measurand  map[string]string
 }
 
+/*
 type Measurand struct {
-	Name, Type string
+	Record     map[string]string
 }
 
+
+*/
 type WebserverConf struct {
 	Active      bool
 	Port        int
@@ -65,7 +68,7 @@ type Configuration struct {
 	TimerPeriod time.Duration
 	Debug       DebugConf
 	Meter       map[string]Meter
-	Measurand   map[string]Measurand
+	Measurand   map[string]map[string]string
 	Webserver   WebserverConf
 	Csv         CsvConf
 	Influx      InfluxConf
@@ -77,7 +80,7 @@ var Config Configuration
 func init() {
 	Config = Configuration{
 		Meter:     map[string]Meter{},
-		Measurand: map[string]Measurand{},
+		Measurand: map[string]map[string]string{},
 		Webserver: WebserverConf{Webservices: map[string]bool{}},
 	}
 }

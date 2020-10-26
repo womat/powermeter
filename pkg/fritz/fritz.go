@@ -70,16 +70,21 @@ func (c *Client) ListMeasurand() (names []string) {
 }
 
 func (c *Client) GetMeteredValue(measurand string) (e float64, err error) {
-	for retryCounter := 0; retryCounter <= c.maxRetries; retryCounter++ {
-
+	for retryCounter := 0; true; retryCounter++ {
 		var v float64
-		if err = c.get(switchcmdUrlStr+c.measurand[measurand].command+"&ain="+c.ain, &v); err == nil {
-			return v * math.Pow10(c.measurand[measurand].scaleFactor), nil
-		}
-		// TODO : debug if retry, error after x retries
 
-		time.Sleep(10 * time.Millisecond)
-		errorLog.Printf("error to receive client data: %v\n", err)
+		if err = c.get(switchcmdUrlStr+c.measurand[measurand].command+"&ain="+c.ain, &v); err != nil {
+			if retryCounter >= c.maxRetries {
+				errorLog.Printf("error to receive client data: %v\n", err)
+				return
+			}
+
+			warningLog.Printf("error to receive client data: %v\n", err)
+			time.Sleep(c.timeout / 2)
+			continue
+		}
+
+		return v * math.Pow10(c.measurand[measurand].scaleFactor), nil
 	}
 
 	return

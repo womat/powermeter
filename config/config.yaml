@@ -50,14 +50,15 @@ meter:
 
 measurand:
   E:
-    name: Energy
-    type: delta
+    Energy: 'type:delta out:influx,csv'
+    Power (avg): 'type:avg out:influx,csv'
+    Energy (Wh): 'type:value out:influx,csv'
   E_GRID:
-    name: EnergytoGrid
-    type: delta
+    Energy to Grid: 'type:delta out:influx,csv'
+    Energy to Grid (Wh): 'type:value out:influx,csv'
   P:
-    name: Power
-    type: snap
+    Power (W): 'type:value out:csv'
+
 
 # webserver configuration
 webserver:

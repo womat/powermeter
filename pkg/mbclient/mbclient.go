@@ -3,6 +3,7 @@ package mbclient
 import (
 	"encoding/binary"
 	"errors"
+	"fmt"
 	"math"
 	"regexp"
 	"strconv"
@@ -73,37 +74,47 @@ func (c *Client) ListMeasurand() (names []string) {
 }
 
 func (c *Client) GetMeteredValue(measurand string) (e float64, err error) {
-	var retryCounter int
-	var data []byte
+	var m measurandParam
+	var ok bool
 
-	if m, ok := c.measurand[measurand]; ok {
-		for retryCounter = 0; retryCounter <= c.maxRetries; retryCounter++ {
-			var v float64
-			q := quantity(m.format)
-			data, err = c.get(m.address, q)
-			if err == nil {
-				switch d := data[0 : q*2]; m.format {
-				case _sint16:
-					v = float64(int16(binary.BigEndian.Uint16(d)))
-				case _sint32:
-					v = float64(int32(binary.BigEndian.Uint32(d)))
-				case _sint64:
-					v = float64(int64(binary.BigEndian.Uint64(d)))
-				case _uint16:
-					v = float64(binary.BigEndian.Uint16(d))
-				case _uint32:
-					v = float64(binary.BigEndian.Uint32(d))
-				case _uint64:
-					v = float64(binary.BigEndian.Uint64(d))
-				case _float32:
-					v = float64(math.Float32frombits(binary.BigEndian.Uint32(d)))
-				}
-				return v * math.Pow10(m.scaleFactor), nil
+	if m, ok = c.measurand[measurand]; !ok {
+		err = fmt.Errorf("unknow measurand: %v", measurand)
+		return
+	}
+
+	for retryCounter := 0; true; retryCounter++ {
+		var v float64
+		var data []byte
+
+		q := quantity(m.format)
+		if data, err = c.get(m.address, q); err != nil {
+			if retryCounter >= c.maxRetries {
+				errorLog.Printf("error to receive client data: %v\n", err)
+				return
 			}
 
-			time.Sleep(10 * time.Millisecond)
-			errorLog.Printf("error to receive client data: %v\n", err)
+			warningLog.Printf("error to receive client data: %v\n", err)
+			time.Sleep(c.timeout / 2)
+			continue
 		}
+
+		switch d := data[0 : q*2]; m.format {
+		case _sint16:
+			v = float64(int16(binary.BigEndian.Uint16(d)))
+		case _sint32:
+			v = float64(int32(binary.BigEndian.Uint32(d)))
+		case _sint64:
+			v = float64(int64(binary.BigEndian.Uint64(d)))
+		case _uint16:
+			v = float64(binary.BigEndian.Uint16(d))
+		case _uint32:
+			v = float64(binary.BigEndian.Uint32(d))
+		case _uint64:
+			v = float64(binary.BigEndian.Uint64(d))
+		case _float32:
+			v = float64(math.Float32frombits(binary.BigEndian.Uint32(d)))
+		}
+		return v * math.Pow10(m.scaleFactor), nil
 	}
 
 	return
@@ -143,7 +154,6 @@ func (c *Client) get(address uint16, quantity int) (data []byte, err error) {
 		defer clientHandler.Close()
 
 		client := modbus.NewClient(clientHandler)
-		// TODO registers should be a parameter in the config file
 		data, err = client.ReadHoldingRegisters(address, uint16(quantity))
 	}()
 

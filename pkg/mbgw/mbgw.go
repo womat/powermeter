@@ -85,61 +85,48 @@ func (c *Client) ListMeasurand() (names []string) {
 	return
 }
 
-func (c *Client) GetEnergyCounter() (e float64, err error) {
-	var retryCounter int
-	var register map[uint16]uint16
-	for retryCounter = 0; retryCounter <= c.maxRetries; retryCounter++ {
+func (c *Client) GetMeteredValue(measurand string) (e float64, err error) {
+	var m measurandParam
+	var ok bool
 
-		connectionString := fmt.Sprintf("%v/readholdingregisters?Address=%v&Quantity=%v", c.connectionString, 4124, 2)
-		register, err = c.get(connectionString)
-
-		if err == nil {
-			break
-		}
-
-		time.Sleep(10 * time.Millisecond)
-		errorLog.Printf("error to receive client data: %v\n", err)
+	if m, ok = c.measurand[measurand]; !ok {
+		err = fmt.Errorf("unknow measurand: %v", measurand)
+		return
 	}
 
-	e = float64(uint32(register[4124])<<16 | uint32(register[4125]))
-	return
-}
+	for retryCounter := 0; true; retryCounter++ {
+		var v float64
+		var register map[uint16]uint16
 
-func (c *Client) GetMeteredValue(measurand string) (e float64, err error) {
-	var retryCounter int
-	var register map[uint16]uint16
-
-	if m, ok := c.measurand[measurand]; ok {
-		for retryCounter = 0; retryCounter <= c.maxRetries; retryCounter++ {
-			var v float64
-			q := quantity(m.format)
-
-			connectionString := fmt.Sprintf("%v/readholdingregisters?Address=%v&Quantity=%v", c.connectionString, m.address, q)
-			register, err = c.get(connectionString)
-
-			if err == nil {
-				switch m.format {
-				case _sint16:
-					v = int16ToFloat64(register)
-				case _sint32:
-					v = int32ToFloat64(register)
-				case _sint64:
-					v = int64ToFloat64(register)
-				case _uint16:
-					v = uint16ToFloat64(register)
-				case _uint32:
-					v = uint32ToFloat64(register)
-				case _uint64:
-					v = uint64ToFloat64(register)
-				case _float32:
-					v = bitsToFloat64(register)
-				}
-				return v * math.Pow10(m.scaleFactor), nil
+		connectionString := fmt.Sprintf("%v/readholdingregisters?Address=%v&Quantity=%v", c.connectionString, m.address, quantity(m.format))
+		if register, err = c.get(connectionString); err != nil {
+			if retryCounter >= c.maxRetries {
+				errorLog.Printf("error to receive client data: %v\n", err)
+				return
 			}
 
-			time.Sleep(10 * time.Millisecond)
-			errorLog.Printf("error to receive client data: %v\n", err)
+			warningLog.Printf("error to receive client data: %v\n", err)
+			time.Sleep(c.timeout / 2)
+			continue
 		}
+
+		switch m.format {
+		case _sint16:
+			v = int16ToFloat64(register)
+		case _sint32:
+			v = int32ToFloat64(register)
+		case _sint64:
+			v = int64ToFloat64(register)
+		case _uint16:
+			v = uint16ToFloat64(register)
+		case _uint32:
+			v = uint32ToFloat64(register)
+		case _uint64:
+			v = uint64ToFloat64(register)
+		case _float32:
+			v = bitsToFloat64(register)
+		}
+		return v * math.Pow10(m.scaleFactor), nil
 	}
 
 	return
