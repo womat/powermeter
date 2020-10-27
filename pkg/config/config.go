@@ -37,7 +37,7 @@ func init() {
 	flag.Bool("version", false, "print version and exit")
 	flag.String("debug.file", "stderr", "log file eg. /tmp/emu.log")
 	flag.String("debug.flag", "", "enable debug information (standard | trace | debug)")
-	flag.String("config", "", "Config File eg. /opt/womat/config.yaml")
+	flag.String("config", "", "Config File eg. /opt/womat/powermeter.yaml")
 
 	pflag.CommandLine.AddGoFlagSet(flag.CommandLine)
 	pflag.Parse()
@@ -51,7 +51,7 @@ func init() {
 	if f := viper.GetString("config"); f != "" {
 		viper.SetConfigFile(f)
 	} else {
-		viper.SetConfigName("config")
+		viper.SetConfigName("powermeter")
 		viper.AddConfigPath(".")
 		viper.AddConfigPath("/opt/womat/")
 	}

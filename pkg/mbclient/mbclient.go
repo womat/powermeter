@@ -178,6 +178,7 @@ func getField(v interface{}, connectionString, param string) {
 		fields := strings.Fields(connectionString)
 		for _, field := range fields {
 			// check if connection string is valid
+			//TODO: auch dns namen sollen unterstützt werden!
 			if regexp.MustCompile(`^https?://.*$`).MatchString(field) || regexp.MustCompile(`^[\d]{1,3}\.[\d]{1,3}\.[\d]{1,3}\.[\d]{1,3}:[\d]{1,5}$`).MatchString(field) {
 				switch x := v.(type) {
 				case *string:
