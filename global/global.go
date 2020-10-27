@@ -13,6 +13,7 @@ import (
 //
 // VERSION differs from semantic versioning as described in https://semver.org/
 // but we keep the correct syntax.
+//TODO: Versionsnummer auf 1.0.1+2020xxyy anpassen
 const VERSION = "1.0.0+20201026"
 
 type DebugConf struct {
@@ -56,12 +57,11 @@ type CsvConf struct {
 }
 
 type InfluxConf struct {
-	ServerURL   string
-	User        string
-	Password    string
-	Location    string
-	Database    string
-	Measurement string
+	ServerURL string
+	User      string
+	Password  string
+	Location  string
+	Database  string
 }
 
 type Configuration struct {

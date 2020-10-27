@@ -49,6 +49,7 @@ func (c *Client) Listen(connectionString string) (err error) {
 	getField(&c.username, connectionString, "username")
 	getField(&c.password, connectionString, "password")
 	getField(&c.timeout, connectionString, "timeout")
+	//TODO: auf retry ändern?
 	getField(&c.maxRetries, connectionString, "maxretries")
 	return
 }

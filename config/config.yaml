@@ -16,7 +16,7 @@ meter:
   primarymeter:
     type: mbclient
     #    connection: tcp smartfox.fritz.box:502 deviceid:1 retry:2 timeout:100
-    connection: tcp 192.168.65.197:502 deviceid:1 retry:3 timeout:1000
+    connection: tcp 192.168.65.197:502 deviceid:1 maxretries:3 timeout:1000
     measurand:
       E: 'address:40999 uint64'
       E_GRID: 'address:41003 uint64'
@@ -24,13 +24,13 @@ meter:
   boiler:
     type: mbclient
     #    connection: tcp smartfox.fritz.box:502 deviceid:1 retry:2 timeout:100
-    connection: tcp 192.168.65.197:502 deviceid:1 retry:3 timeout:1000
+    connection: tcp 192.168.65.197:502 deviceid:1 maxretries:3 timeout:1000
     measurand:
       E: 'address:41007 uint64'
       P: 'address:41041 uint32'
   heatpump:
     type: mbgateway
-    connection: http http://raspberryz.fritz.box:8080 retry:3 timeout:1000
+    connection: http http://raspberryz.fritz.box:8080 maxretries:3 timeout:1000
     measurand:
       E: 'address:4124 uint32 sf:0'
       P: 'address:4116 uint32 sf:-2'
@@ -43,7 +43,7 @@ meter:
   inverter:
     type: mbclient
     #    connection: tcp fronius.fritz.box:502 deviceid:1 retry:2 timeout:200
-    connection: tcp 192.168.65.196:502 deviceid:1 retry:3 timeout:1000
+    connection: tcp 192.168.65.196:502 deviceid:1 maxretries:3 timeout:1000
     measurand:
       E: 'address:40101 float32'
       P: 'address:40091 float32'
