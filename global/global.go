@@ -2,7 +2,10 @@ package global
 
 import (
 	"io"
+	"sync"
 	"time"
+
+	"powermeter/pkg/energy"
 )
 
 // VERSION holds the version information with the following logic in mind
@@ -13,8 +16,9 @@ import (
 //
 // VERSION differs from semantic versioning as described in https://semver.org/
 // but we keep the correct syntax.
-//TODO: Versionsnummer auf 1.0.1+2020xxyy anpassen
-const VERSION = "1.0.0+20201026"
+//TODO: increase version number to 1.0.1+2020xxyy
+const VERSION = "1.0.1+20201228"
+const MODULE = "powermeter"
 
 type DebugConf struct {
 	File io.WriteCloser
@@ -35,13 +39,6 @@ type Meter struct {
 	Measurand  map[string]string
 }
 
-/*
-type Measurand struct {
-	Record     map[string]string
-}
-
-
-*/
 type WebserverConf struct {
 	Active      bool
 	Port        int
@@ -74,8 +71,32 @@ type Configuration struct {
 	Influx      InfluxConf
 }
 
+type Value struct {
+	Value     float64
+	Delta     float64
+	Avg       float64
+	LastValue float64
+}
+
+type MeteR struct {
+	sync.RWMutex `json:"-"`
+	Measurand    map[string]*Value
+	Handler      energy.Meter `json:"-"`
+	LastTime     time.Time
+	Time         time.Time
+}
+
+type Meters struct {
+	sync.RWMutex
+	Meter map[string]*MeteR
+	//TODO: LastTime und Time wird hier nicht benötigt
+	LastTime time.Time
+	Time     time.Time
+}
+
 // Config holds the global configuration
 var Config Configuration
+var AllMeters Meters
 
 func init() {
 	Config = Configuration{
@@ -83,4 +104,6 @@ func init() {
 		Measurand: map[string]map[string]string{},
 		Webserver: WebserverConf{Webservices: map[string]bool{}},
 	}
+
+	AllMeters = Meters{Meter: map[string]*MeteR{}}
 }

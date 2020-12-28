@@ -68,6 +68,7 @@ webserver:
   webservices:
     version: true
     currentdata: true
+    meter: true
     data: true
     download: true
 csv:

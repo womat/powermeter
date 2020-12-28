@@ -104,7 +104,7 @@ func (c *Client) get(urlStr string, v interface{}) (err error) {
 			}
 			close(done)
 		}()
-		debugLog.Printf("performing fritz!box http request: %v\n", urlStr)
+		debugLog.Printf("performing fritz!box http request: %q\n", urlStr)
 
 		fb := fritzbox.NewClient(nil)
 		fb.TimeOut = c.timeout

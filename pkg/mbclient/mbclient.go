@@ -79,7 +79,7 @@ func (c *Client) GetMeteredValue(measurand string) (e float64, err error) {
 	var ok bool
 
 	if m, ok = c.measurand[measurand]; !ok {
-		err = fmt.Errorf("unknow measurand: %v", measurand)
+		err = fmt.Errorf("unknow measurand: %v\n", measurand)
 		return
 	}
 

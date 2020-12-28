@@ -91,7 +91,7 @@ func (c *Client) GetMeteredValue(measurand string) (e float64, err error) {
 	var ok bool
 
 	if m, ok = c.measurand[measurand]; !ok {
-		err = fmt.Errorf("unknow measurand: %v", measurand)
+		err = fmt.Errorf("unknow measurand: %v\n", measurand)
 		return
 	}
 
@@ -188,7 +188,7 @@ func (c *Client) get(connectionString string) (register map[uint16]uint16, err e
 			close(done)
 		}()
 
-		debugLog.Printf("performing http get: %v\n", connectionString)
+		debugLog.Printf("performing http get: %q\n", connectionString)
 
 		var resp *http.Response
 		if resp, err = http.Get(connectionString); err != nil {

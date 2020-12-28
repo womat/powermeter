@@ -100,7 +100,7 @@ func (c *Writer) WriteOnlyHeader(header map[string]interface{}) (err error) {
 	}
 
 	c.header = csvHeader
-	debugLog.Printf("Filename: %s written header: %v\n", c.fileName, csvRecords)
+	debugLog.Printf("Filename: %q written header: %v\n", c.fileName, csvRecords)
 	return
 }
 
@@ -147,7 +147,7 @@ func (c *Writer) write(records []map[string]interface{}) (err error) {
 		return
 	}
 
-	debugLog.Printf("Filename: %s written records: %v\n", c.fileName, len(csvRecords))
+	debugLog.Printf("Filename: %q written records: %v\n", c.fileName, len(csvRecords))
 	return
 }
 

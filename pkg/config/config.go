@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"log"
 	"os"
+	"path/filepath"
 	"time"
 
 	"github.com/spf13/pflag"
@@ -35,9 +36,9 @@ func init() {
 	var configFile yamlStruct
 
 	flag.Bool("version", false, "print version and exit")
-	flag.String("debug.file", "stderr", "log file eg. /tmp/emu.log")
+	flag.String("debug.file", "stderr", "log file eg. "+filepath.Join("/opt/womat/log/", global.MODULE+".log"))
 	flag.String("debug.flag", "", "enable debug information (standard | trace | debug)")
-	flag.String("config", "", "Config File eg. /opt/womat/powermeter.yaml")
+	flag.String("config", "", "Config File eg. "+filepath.Join("/opt/womat/", global.MODULE+".yaml"))
 
 	pflag.CommandLine.AddGoFlagSet(flag.CommandLine)
 	pflag.Parse()
@@ -51,9 +52,10 @@ func init() {
 	if f := viper.GetString("config"); f != "" {
 		viper.SetConfigFile(f)
 	} else {
-		viper.SetConfigName("powermeter")
+		viper.SetConfigName(global.MODULE)
 		viper.AddConfigPath(".")
 		viper.AddConfigPath("/opt/womat/")
+		viper.AddConfigPath(filepath.Join("/opt/womat/", global.MODULE))
 	}
 
 	if err := viper.ReadInConfig(); err != nil {
@@ -61,7 +63,7 @@ func init() {
 	}
 	err := viper.Unmarshal(&configFile)
 	if err != nil {
-		log.Fatalf("unable to decode into struct, %v", err)
+		log.Fatalf("unable to decode into struct %v", err)
 	}
 
 	getDebugFlag := func(flag string) int {
@@ -107,8 +109,8 @@ func init() {
 	global.Config.TimerPeriod = 5 * time.Second
 	if configFile.TimePeriod > 0 {
 		global.Config.TimerPeriod = time.Duration(configFile.TimePeriod) * time.Second
-
 	}
+
 	global.Config.Csv = configFile.Csv
 	global.Config.Influx = configFile.Influx
 	global.Config.Webserver = configFile.Webserver

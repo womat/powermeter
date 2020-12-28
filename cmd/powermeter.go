@@ -2,42 +2,23 @@ package main
 
 import (
 	"fmt"
-	"math"
 	"path"
+	"strconv"
+	"strings"
+	"time"
+
 	"powermeter/global"
 	_ "powermeter/pkg/config"
 	"powermeter/pkg/csv"
 	"powermeter/pkg/debug"
-	"powermeter/pkg/energy"
 	"powermeter/pkg/fritz"
 	"powermeter/pkg/influx"
 	"powermeter/pkg/mbclient"
 	"powermeter/pkg/mbgw"
-	"strconv"
-	"strings"
-	"time"
+	_ "powermeter/pkg/webservice"
 )
 
-type value struct {
-	value     float64
-	delta     float64
-	avg       float64
-	lastValue float64
-}
-
-type meter struct {
-	measurand map[string]value
-	handler   energy.Meter
-}
-
-type meters struct {
-	meter    map[string]meter
-	lastTime time.Time
-	time     time.Time
-}
-
 func main() {
-	AllMeters := meters{meter: map[string]meter{}}
 
 	for meterName, meterConfig := range global.Config.Meter {
 		switch t := meterConfig.Type; t {
@@ -48,7 +29,7 @@ func main() {
 				return
 			}
 
-			AllMeters.meter[meterName] = meter{handler: c, measurand: map[string]value{}}
+			global.AllMeters.Meter[meterName] = &global.MeteR{Measurand: map[string]*global.Value{}, Handler: c}
 		case "mbgateway":
 			c := mbgw.NewClient()
 			if err := c.Listen(meterConfig.Connection); err != nil {
@@ -56,160 +37,83 @@ func main() {
 				return
 			}
 
-			AllMeters.meter[meterName] = meter{handler: c, measurand: map[string]value{}}
+			global.AllMeters.Meter[meterName] = &global.MeteR{Measurand: map[string]*global.Value{}, Handler: c}
 		case "fritz!powerline":
 			c := fritz.NewClient()
 			if err := c.Listen(meterConfig.Connection); err != nil {
 				debug.ErrorLog.Printf("error to start fritz!powerline client %v: %v\n", meterConfig.Connection, err)
 				return
 			}
-			AllMeters.meter[meterName] = meter{handler: c, measurand: map[string]value{}}
+			global.AllMeters.Meter[meterName] = &global.MeteR{Measurand: map[string]*global.Value{}, Handler: c}
 		default:
 			debug.WarningLog.Printf("client type %v is not supported\n", t)
 		}
 
-		AllMeters.meter[meterName].handler.AddMeasurand(meterConfig.Measurand)
-		for _, measurandName := range AllMeters.meter[meterName].handler.ListMeasurand() {
-			AllMeters.meter[meterName].measurand[measurandName] = value{}
+		global.AllMeters.Meter[meterName].Handler.AddMeasurand(meterConfig.Measurand)
+		for _, measurandName := range global.AllMeters.Meter[meterName].Handler.ListMeasurand() {
+			global.AllMeters.Meter[meterName].Measurand[measurandName] = &global.Value{}
 		}
 	}
 
 	ticker := time.NewTicker(global.Config.TimerPeriod)
 	defer ticker.Stop()
 
-	for {
-		AllMeters.lastTime = AllMeters.time
-		AllMeters.time = time.Now()
+	for ; ; <-ticker.C {
+		runTime := time.Now()
 
-		for meterName, meter := range AllMeters.meter {
-			for _, measurandName := range meter.handler.ListMeasurand() {
-				if _, ok := global.Config.Measurand[measurandName]; !ok {
-					continue
+		for _, meter := range global.AllMeters.Meter {
+			meter.LastTime = meter.Time
+			meter.Time = time.Now()
+			func() {
+				meter.Lock()
+				defer meter.Unlock()
+
+				for _, measurandName := range meter.Handler.ListMeasurand() {
+					if _, ok := global.Config.Measurand[measurandName]; !ok {
+						debug.ErrorLog.Printf("can't find global.Config.Measurand[%q]", measurandName)
+						continue
+					}
+
+					newValue, err := meter.Handler.GetMeteredValue(measurandName)
+					if err != nil {
+						debug.ErrorLog.Printf("GetMeteredValue(%q): %v", measurandName, err)
+						continue
+					}
+
+					value := meter.Measurand[measurandName]
+					value.LastValue, value.Value = value.Value, newValue
+					value.Delta, value.Avg = 0, 0 // math.NaN()
+
+					if value.LastValue > 0 && value.Value != 0 && meter.Time.Sub(meter.LastTime).Hours() < 24*365*10 {
+						value.Delta = value.Value - value.LastValue
+						value.Avg = value.Delta / meter.Time.Sub(meter.LastTime).Hours()
+					}
 				}
-
-				tempValue := meter.measurand[measurandName]
-				tempValue.lastValue = tempValue.value
-				tempValue.value, _ = meter.handler.GetMeteredValue(measurandName)
-				tempValue.delta, tempValue.avg = 0, math.NaN()
-
-				if tempValue.lastValue > 0 && tempValue.value != 0 && AllMeters.time.Sub(AllMeters.lastTime).Hours() < 24*365*10 {
-					tempValue.delta = tempValue.value - tempValue.lastValue
-					tempValue.avg = tempValue.delta / AllMeters.time.Sub(AllMeters.lastTime).Hours()
-				}
-
-				meter.measurand[measurandName] = tempValue
-			}
-			AllMeters.meter[meterName] = meter
+			}()
 		}
 
-		func(m meters) {
-			csvFileName := path.Join(global.Config.Csv.Path, csv.FileName(global.Config.Csv.FilenameFormat, time.Now()))
-			csvWriter := csv.New()
-			csvWriter.ValueSeparator = rune(global.Config.Csv.Separator[0])
-			csvWriter.DecimalSeparator = rune(global.Config.Csv.DecimalSeparator[0])
-			if err := csvWriter.Open(csvFileName); err != nil {
-				debug.ErrorLog.Printf("error open file %v: %v", csvFileName, err)
-				return
-			}
-			defer csvWriter.Close()
+		func() {
+			global.AllMeters.Lock()
+			defer global.AllMeters.Unlock()
+			global.AllMeters.LastTime = global.AllMeters.Time
+			global.AllMeters.Time = time.Now()
+		}()
 
-			record := map[string]interface{}{}
-			record["Date"] = m.time
-			for meterName, meter := range m.meter {
-				for measurandName, measurand := range meter.measurand {
-					if cfgRecords, ok := global.Config.Measurand[measurandName]; ok {
-						for n, cfgRecord := range cfgRecords {
-							var out string
-							getField(&out, cfgRecord, "out")
-							if isIn("csv", out) {
-								var t string
-								headerName := meterName + "-" + n
-								getField(&t, cfgRecord, "type")
-								switch t {
-								case "value":
-									record[headerName] = measurand.value
-								case "delta":
-									record[headerName] = measurand.delta
-								case "avg":
-									record[headerName] = measurand.avg
-								}
-							}
-						}
-					}
-				}
-			}
+		debug.InfoLog.Println("runtime to receive data: ", time.Since(runTime))
+		runTime = time.Now()
 
-			if csvWriter.IsNewFile() {
-				if err := csvWriter.WriteOnlyHeader(record); err != nil {
-					debug.ErrorLog.Printf("error write header %v: %v", record, err)
-					return
-				}
-			}
+		if err := WriteToCSV(&global.AllMeters, &global.Config); err != nil {
+			debug.ErrorLog.Printf("writing to CSF File: %q\n", err)
+		}
+		if err := WriteToInflux(&global.AllMeters, &global.Config); err != nil {
+			debug.ErrorLog.Printf("writing to influx db: %q\n", err)
+		}
 
-			r := make([]map[string]interface{}, 0, 1)
-			r = append(r, record)
-
-			if err := csvWriter.Write(r); err != nil {
-				debug.ErrorLog.Printf("error write csv file: %v", err)
-				return
-			}
-		}(AllMeters)
-
-		func(m meters) {
-			influxClient := influx.New()
-			influxClient.Open(global.Config.Influx.ServerURL, fmt.Sprintf("%s:%s", global.Config.Influx.User, global.Config.Influx.Password), global.Config.Influx.Database)
-			defer influxClient.Close()
-
-			influxClient.AddTag("location", global.Config.Influx.Location)
-			influxClient.SetTime(m.time)
-
-			for meterName, meter := range m.meter {
-				records := make([]map[string]interface{}, 1)
-				record := map[string]interface{}{}
-
-				for measurandName, measurand := range meter.measurand {
-					if cfgRecords, ok := global.Config.Measurand[measurandName]; ok {
-						for n, cfgRecord := range cfgRecords {
-							var out string
-							getField(&out, cfgRecord, "out")
-							if isIn("influx", out) {
-								var t string
-								getField(&t, cfgRecord, "type")
-
-								switch t {
-								case "value":
-									record[n] = measurand.value
-								case "delta":
-									record[n] = measurand.delta
-								case "avg":
-									record[n] = measurand.avg
-								}
-							}
-						}
-					}
-				}
-
-				records[0] = record
-
-				if len(records[0]) > 0 {
-					influxClient.SetMeasurement(meterName)
-
-					if err := influxClient.Write(records); err != nil {
-						debug.ErrorLog.Printf("error write to influx db: %v", err)
-						return
-					}
-				}
-			}
-
-		}(AllMeters)
-
-		debug.InfoLog.Println("runtime: ", time.Since(AllMeters.time))
-		<-ticker.C
+		debug.InfoLog.Println("runtime to write data: ", time.Since(runTime))
 	}
 }
 
 func getField(v interface{}, connectionString, param string) {
-
 	fields := strings.Fields(connectionString)
 	for _, field := range fields {
 		parts := strings.Split(field, ":")
@@ -248,4 +152,107 @@ func isIn(v, s string) bool {
 		}
 	}
 	return false
+}
+
+func WriteToInflux(m *global.Meters, config *global.Configuration) error {
+	influxClient := influx.New()
+	influxClient.Open(config.Influx.ServerURL, fmt.Sprintf("%s:%s", config.Influx.User, config.Influx.Password), config.Influx.Database)
+	defer influxClient.Close()
+
+	m.RLock()
+	defer m.RUnlock()
+	influxClient.AddTag("location", config.Influx.Location)
+	influxClient.SetTime(m.Time)
+
+	for meterName, meter := range m.Meter {
+		records := make([]map[string]interface{}, 1)
+		record := map[string]interface{}{}
+
+		for measurandName, measurand := range meter.Measurand {
+			if cfgRecords, ok := config.Measurand[measurandName]; ok {
+				for n, cfgRecord := range cfgRecords {
+					var out string
+					getField(&out, cfgRecord, "out")
+					if isIn("influx", out) {
+						var t string
+						getField(&t, cfgRecord, "type")
+
+						switch t {
+						case "value":
+							record[n] = measurand.Value
+						case "delta":
+							record[n] = measurand.Delta
+						case "avg":
+							record[n] = measurand.Avg
+						}
+					}
+				}
+			}
+		}
+
+		records[0] = record
+
+		if len(records[0]) > 0 {
+			influxClient.SetMeasurement(meterName)
+			return influxClient.Write(records)
+		}
+	}
+
+	return nil
+}
+
+func WriteToCSV(m *global.Meters, config *global.Configuration) error {
+	csvFileName := path.Join(config.Csv.Path, csv.FileName(config.Csv.FilenameFormat, time.Now()))
+	csvWriter := csv.New()
+	csvWriter.ValueSeparator = rune(config.Csv.Separator[0])
+	csvWriter.DecimalSeparator = rune(config.Csv.DecimalSeparator[0])
+	if err := csvWriter.Open(csvFileName); err != nil {
+		return fmt.Errorf("open file %v: %w\n", csvFileName, err)
+	}
+	defer csvWriter.Close()
+
+	record := map[string]interface{}{}
+
+	m.RLock()
+	defer m.RUnlock()
+
+	record["Date"] = m.Time
+	for meterName, meter := range m.Meter {
+		for measurandName, measurand := range meter.Measurand {
+			if cfgRecords, ok := config.Measurand[measurandName]; ok {
+				for n, cfgRecord := range cfgRecords {
+					var out string
+					getField(&out, cfgRecord, "out")
+					if isIn("csv", out) {
+						var t string
+						headerName := meterName + "-" + n
+						getField(&t, cfgRecord, "type")
+						switch t {
+						case "value":
+							record[headerName] = measurand.Value
+						case "delta":
+							record[headerName] = measurand.Delta
+						case "avg":
+							record[headerName] = measurand.Avg
+						}
+					}
+				}
+			}
+		}
+	}
+
+	if csvWriter.IsNewFile() {
+		if err := csvWriter.WriteOnlyHeader(record); err != nil {
+			return fmt.Errorf("write header %q: %w", record, err)
+		}
+	}
+
+	r := make([]map[string]interface{}, 0, 1)
+	r = append(r, record)
+
+	if err := csvWriter.Write(r); err != nil {
+		return fmt.Errorf("write csv file: %w", err)
+	}
+
+	return nil
 }
