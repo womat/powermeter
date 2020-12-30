@@ -19,7 +19,6 @@ import (
 )
 
 func main() {
-
 	for meterName, meterConfig := range global.Config.Meter {
 		switch t := meterConfig.Type; t {
 		case "mbclient":
@@ -46,7 +45,7 @@ func main() {
 			}
 			global.AllMeters.Meter[meterName] = &global.MeteR{Measurand: map[string]*global.Value{}, Handler: c}
 		default:
-			debug.WarningLog.Printf("client type %v is not supported\n", t)
+			debug.WarningLog.Printf("client type %q is not supported\n", t)
 		}
 
 		global.AllMeters.Meter[meterName].Handler.AddMeasurand(meterConfig.Measurand)
@@ -61,32 +60,32 @@ func main() {
 	for ; ; <-ticker.C {
 		runTime := time.Now()
 
-		for _, meter := range global.AllMeters.Meter {
-			meter.LastTime = meter.Time
-			meter.Time = time.Now()
+		for meterName, meter := range global.AllMeters.Meter {
+			values, err := meter.Reader()
+			if err != nil {
+				debug.ErrorLog.Printf("error read values from meter %q: %v\n", meterName, err)
+			}
+
 			func() {
 				meter.Lock()
 				defer meter.Unlock()
 
-				for _, measurandName := range meter.Handler.ListMeasurand() {
+				meter.LastTime = meter.Time
+				meter.Time = time.Now()
+
+				for measurandName, newValue := range values {
 					if _, ok := global.Config.Measurand[measurandName]; !ok {
 						debug.ErrorLog.Printf("can't find global.Config.Measurand[%q]", measurandName)
 						continue
 					}
 
-					newValue, err := meter.Handler.GetMeteredValue(measurandName)
-					if err != nil {
-						debug.ErrorLog.Printf("GetMeteredValue(%q): %v", measurandName, err)
-						continue
-					}
+					v := meter.Measurand[measurandName]
+					v.LastValue, v.Value = v.Value, newValue
+					v.Delta, v.Avg = 0, 0 // math.NaN()
 
-					value := meter.Measurand[measurandName]
-					value.LastValue, value.Value = value.Value, newValue
-					value.Delta, value.Avg = 0, 0 // math.NaN()
-
-					if value.LastValue > 0 && value.Value != 0 && meter.Time.Sub(meter.LastTime).Hours() < 24*365*10 {
-						value.Delta = value.Value - value.LastValue
-						value.Avg = value.Delta / meter.Time.Sub(meter.LastTime).Hours()
+					if v.LastValue > 0 && v.Value != 0 && meter.Time.Sub(meter.LastTime).Hours() < 24*365*10 {
+						v.Delta = v.Value - v.LastValue
+						v.Avg = v.Delta / meter.Time.Sub(meter.LastTime).Hours()
 					}
 				}
 			}()
@@ -103,7 +102,7 @@ func main() {
 		runTime = time.Now()
 
 		if err := WriteToCSV(&global.AllMeters, &global.Config); err != nil {
-			debug.ErrorLog.Printf("writing to CSF File: %q\n", err)
+			debug.ErrorLog.Printf("writing to CSV file: %q\n", err)
 		}
 		if err := WriteToInflux(&global.AllMeters, &global.Config); err != nil {
 			debug.ErrorLog.Printf("writing to influx db: %q\n", err)
@@ -207,7 +206,7 @@ func WriteToCSV(m *global.Meters, config *global.Configuration) error {
 	csvWriter.ValueSeparator = rune(config.Csv.Separator[0])
 	csvWriter.DecimalSeparator = rune(config.Csv.DecimalSeparator[0])
 	if err := csvWriter.Open(csvFileName); err != nil {
-		return fmt.Errorf("open file %v: %w\n", csvFileName, err)
+		return fmt.Errorf("open file %v: %w", csvFileName, err)
 	}
 	defer csvWriter.Close()
 

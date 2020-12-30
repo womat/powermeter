@@ -69,6 +69,7 @@ webserver:
     version: true
     currentdata: true
     meter: true
+    allmeters: true
     data: true
     download: true
 csv:

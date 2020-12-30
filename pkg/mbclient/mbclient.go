@@ -79,7 +79,7 @@ func (c *Client) GetMeteredValue(measurand string) (e float64, err error) {
 	var ok bool
 
 	if m, ok = c.measurand[measurand]; !ok {
-		err = fmt.Errorf("unknow measurand: %v\n", measurand)
+		err = fmt.Errorf("unknow measurand %q", measurand)
 		return
 	}
 
@@ -191,7 +191,6 @@ func getField(v interface{}, connectionString, param string) {
 		fields := strings.Fields(connectionString)
 		var i int
 		for _, field := range fields {
-
 			switch field {
 			case "sint16":
 				i = _sint16

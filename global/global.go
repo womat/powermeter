@@ -2,6 +2,7 @@ package global
 
 import (
 	"io"
+	"powermeter/pkg/debug"
 	"sync"
 	"time"
 
@@ -106,4 +107,21 @@ func init() {
 	}
 
 	AllMeters = Meters{Meter: map[string]*MeteR{}}
+}
+
+func (m *MeteR) Reader() (val map[string]float64, err error) {
+	m.Lock()
+	defer m.Unlock()
+
+	val = map[string]float64{}
+
+	for _, n := range m.Handler.ListMeasurand() {
+		val[n], err = m.Handler.GetMeteredValue(n)
+		if err != nil {
+			debug.ErrorLog.Printf("GetMeteredValue(%q): %v", n, err)
+			continue
+		}
+	}
+
+	return
 }
