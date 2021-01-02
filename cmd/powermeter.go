@@ -190,10 +190,11 @@ func WriteToInflux(m *global.Meters, config *global.Configuration) error {
 		}
 
 		records[0] = record
-
 		if len(records[0]) > 0 {
 			influxClient.SetMeasurement(meterName)
-			return influxClient.Write(records)
+			if err := influxClient.Write(records); err != nil {
+				return err
+			}
 		}
 	}
 
