@@ -39,7 +39,19 @@ meter:
     connection: http://fritz.box ain:116570149698 username:smarthome password:7Wl6UW5TsOr5Ba6uMbOO timeout:2000 maxretries:3
     measurand:
       E: 'command:getswitchenergy'
-      P: 'command:getswitchpower sf:3'
+      P: 'command:getswitchpower sf:-3'
+  wallbox:
+    type: s0counter
+    connection: http://wallbox:4000/currentdata timeout:1000 maxretries:3 cache:1000
+    measurand:
+      E: 'key:wallbox value:MeterReading sf:3'
+      P: 'key:wallbox value:Flow sf:3'
+  portablewater:
+    type: s0counter
+    connection: http://water:4000/currentdata timeout:1000 maxretries:3 cache:1000
+    measurand:
+      V: 'key:portablewater value:MeterReading sf:3'
+      Q: 'key:portablewater value:Flow sf:0'
   inverter:
     type: mbclient
     #    connection: tcp fronius.fritz.box:502 deviceid:1 maxretries:3 timeout:1000
@@ -47,7 +59,6 @@ meter:
     measurand:
       E: 'address:40101 float32'
       P: 'address:40091 float32'
-
 measurand:
   E:
     Energy: 'type:delta out:influx,csv'
@@ -58,7 +69,12 @@ measurand:
     Energy to Grid (Wh): 'type:value out:influx,csv'
   P:
     Power (W): 'type:value out:csv'
-
+  V:
+    Liter: 'type:delta out:csv'
+    Liter (avg): 'type:avg out:csv'
+    Liter (l): 'type:value out:csv'
+  Q:
+    Liter (l/h): 'type:value out:csv'
 
 # webserver configuration
 webserver:

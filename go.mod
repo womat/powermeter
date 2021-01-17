@@ -12,4 +12,6 @@ require (
 	github.com/spf13/pflag v1.0.5
 	github.com/spf13/viper v1.7.1
 	github.com/vigneshuvi/GoDateFormat v0.0.0-20190923034126-379ee8a8c45f
+	github.com/womat/debug v0.0.3
+	github.com/womat/tools v0.0.2
 )

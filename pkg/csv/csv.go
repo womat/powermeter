@@ -12,6 +12,8 @@ import (
 	"strings"
 	"time"
 
+	"github.com/womat/debug"
+
 	"github.com/vigneshuvi/GoDateFormat"
 )
 
@@ -95,12 +97,12 @@ func (c *Writer) WriteOnlyHeader(header map[string]interface{}) (err error) {
 	csvRecords = append(csvRecords, csvHeader)
 
 	if err = c.writer.WriteAll(csvRecords); err != nil {
-		errorLog.Println("error writing header:", err)
+		debug.ErrorLog.Println("error writing header:", err)
 		return
 	}
 
 	c.header = csvHeader
-	debugLog.Printf("Filename: %q written header: %v\n", c.fileName, csvRecords)
+	debug.DebugLog.Printf("Filename: %q written header: %v\n", c.fileName, csvRecords)
 	return
 }
 
@@ -143,11 +145,11 @@ func (c *Writer) write(records []map[string]interface{}) (err error) {
 	}
 	// calls Flush internally
 	if err = c.writer.WriteAll(csvRecords); err != nil {
-		errorLog.Println("error writing csv:", err)
+		debug.ErrorLog.Println("error writing csv:", err)
 		return
 	}
 
-	debugLog.Printf("Filename: %q written records: %v\n", c.fileName, len(csvRecords))
+	debug.DebugLog.Printf("Filename: %q written records: %v\n", c.fileName, len(csvRecords))
 	return
 }
 

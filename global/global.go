@@ -2,9 +2,10 @@ package global
 
 import (
 	"io"
-	"powermeter/pkg/debug"
 	"sync"
 	"time"
+
+	"github.com/womat/debug"
 
 	"powermeter/pkg/energy"
 )
@@ -18,7 +19,7 @@ import (
 // VERSION differs from semantic versioning as described in https://semver.org/
 // but we keep the correct syntax.
 //TODO: increase version number to 1.0.1+2020xxyy
-const VERSION = "1.0.3+20210103"
+const VERSION = "1.0.4+20210117"
 const MODULE = "powermeter"
 
 type DebugConf struct {

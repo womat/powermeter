@@ -10,6 +10,8 @@ import (
 	"strings"
 	"time"
 
+	"github.com/womat/debug"
+
 	"github.com/goburrow/modbus"
 )
 
@@ -45,12 +47,16 @@ func NewClient() (c *Client) {
 	}
 }
 
+func (c *Client) String() string {
+	return "modbus"
+}
+
 // Listen starts the go function to receive data
 func (c *Client) Listen(connectionString string) (err error) {
 	getField(&c.connectionString, connectionString, "connection")
 	getField(&c.deviceId, connectionString, "deviceid")
 	getField(&c.timeout, connectionString, "timeout")
-	//TODO: auf retry ändern?
+	//TODO: change to retry?
 	getField(&c.maxRetries, connectionString, "maxretries")
 	return
 }
@@ -90,11 +96,11 @@ func (c *Client) GetMeteredValue(measurand string) (e float64, err error) {
 		q := quantity(m.format)
 		if data, err = c.get(m.address, q); err != nil {
 			if retryCounter >= c.maxRetries {
-				errorLog.Printf("error to receive client data: %v\n", err)
+				debug.ErrorLog.Printf("error to receive client data: %v\n", err)
 				return
 			}
 
-			warningLog.Printf("error to receive client data: %v\n", err)
+			debug.WarningLog.Printf("error to receive client data: %v\n", err)
 			time.Sleep(c.timeout / 2)
 			continue
 		}
@@ -178,7 +184,7 @@ func getField(v interface{}, connectionString, param string) {
 		fields := strings.Fields(connectionString)
 		for _, field := range fields {
 			// check if connection string is valid
-			//TODO: auch dns namen sollen unterstützt werden!
+			//TODO: support dns names!
 			if regexp.MustCompile(`^https?://.*$`).MatchString(field) || regexp.MustCompile(`^[\d]{1,3}\.[\d]{1,3}\.[\d]{1,3}\.[\d]{1,3}:[\d]{1,5}$`).MatchString(field) {
 				switch x := v.(type) {
 				case *string:

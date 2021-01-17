@@ -6,4 +6,5 @@ type Meter interface {
 	ListMeasurand() []string
 	GetMeteredValue(string) (float64, error)
 	Close() error
+	String() string
 }

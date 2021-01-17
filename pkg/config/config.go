@@ -11,8 +11,10 @@ import (
 	"github.com/spf13/pflag"
 	"github.com/spf13/viper"
 
+	"github.com/womat/debug"
+	"github.com/womat/tools"
+
 	"powermeter/global"
-	"powermeter/pkg/tools"
 )
 
 func init() {
@@ -69,11 +71,11 @@ func init() {
 	getDebugFlag := func(flag string) int {
 		switch flag {
 		case "trace":
-			return Full
+			return debug.Full
 		case "debug":
-			return Warning | Info | Error | Fatal | Debug
+			return debug.Warning | debug.Info | debug.Error | debug.Fatal | debug.Debug
 		case "standard":
-			return Standard
+			return debug.Standard
 		}
 		return 0
 	}
@@ -89,7 +91,7 @@ func init() {
 			_ = tools.CreateFile(file)
 		}
 		if global.Config.Debug.File, err = os.Open(file); err != nil {
-			fatalLog.Println(err)
+			log.Println(err)
 			os.Exit(0)
 		}
 	}

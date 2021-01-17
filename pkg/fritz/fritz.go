@@ -10,10 +10,12 @@ import (
 	"strings"
 	"time"
 
+	"github.com/womat/debug"
+
 	"powermeter/pkg/fritzbox"
 )
 
-const switchcmdUrlStr = "webservices/homeautoswitch.lua?switchcmd="
+const switchCmdURLStr = "webservices/homeautoswitch.lua?switchcmd="
 
 var (
 	ErrTimeOut = errors.New("fritz: timeout while receiving data")
@@ -26,10 +28,10 @@ type Client struct {
 	ain        string
 	timeout    time.Duration
 	maxRetries int
-	measurand  map[string]mesurandParam
+	measurand  map[string]measurandParam
 }
 
-type mesurandParam struct {
+type measurandParam struct {
 	command     string
 	scaleFactor int
 }
@@ -37,11 +39,15 @@ type mesurandParam struct {
 // NewClient creates a new Client handler
 func NewClient() (c *Client) {
 	return &Client{
-		measurand: map[string]mesurandParam{},
+		measurand: map[string]measurandParam{},
 	}
 }
 
-//Listen starts the go function to receive data
+func (c *Client) String() string {
+	return "fritz!powerline"
+}
+
+// Listen starts the go function to receive data
 func (c *Client) Listen(connectionString string) (err error) {
 	//connectionString: http://fritz.box ain:116570149698 username:smarthome password:secret timeout:100 maxretries:0
 	getField(&c.baseURL, connectionString, "baseUrl")
@@ -49,14 +55,14 @@ func (c *Client) Listen(connectionString string) (err error) {
 	getField(&c.username, connectionString, "username")
 	getField(&c.password, connectionString, "password")
 	getField(&c.timeout, connectionString, "timeout")
-	//TODO: auf retry ändern?
+	//TODO: change to retry?
 	getField(&c.maxRetries, connectionString, "maxretries")
 	return
 }
 
 func (c *Client) AddMeasurand(measurand map[string]string) {
 	for n, m := range measurand {
-		p := mesurandParam{}
+		p := measurandParam{}
 		getField(&p.command, m, "command")
 		getField(&p.scaleFactor, m, "sf")
 		c.measurand[n] = p
@@ -74,13 +80,13 @@ func (c *Client) GetMeteredValue(measurand string) (e float64, err error) {
 	for retryCounter := 0; true; retryCounter++ {
 		var v float64
 
-		if err = c.get(switchcmdUrlStr+c.measurand[measurand].command+"&ain="+c.ain, &v); err != nil {
+		if err = c.get(switchCmdURLStr+c.measurand[measurand].command+"&ain="+c.ain, &v); err != nil {
 			if retryCounter >= c.maxRetries {
-				errorLog.Printf("error to receive client data: %v\n", err)
+				debug.ErrorLog.Printf("error to receive client data: %v\n", err)
 				return
 			}
 
-			warningLog.Printf("error to receive client data: %v\n", err)
+			debug.WarningLog.Printf("error to receive client data: %v\n", err)
 			time.Sleep(c.timeout / 2)
 			continue
 		}
@@ -104,7 +110,7 @@ func (c *Client) get(urlStr string, v interface{}) (err error) {
 			}
 			close(done)
 		}()
-		debugLog.Printf("performing fritz!box http request: %q\n", urlStr)
+		debug.DebugLog.Printf("performing fritz!box http request: %q\n", urlStr)
 
 		fb := fritzbox.NewClient(nil)
 		fb.TimeOut = c.timeout
@@ -139,7 +145,6 @@ func (c *Client) Close() (err error) {
 }
 
 func getField(v interface{}, connectionString, param string) {
-
 	switch param {
 	case "baseUrl":
 		fields := strings.Fields(connectionString)
@@ -176,7 +181,6 @@ func getField(v interface{}, connectionString, param string) {
 				*x = time.Second
 				if i, err := strconv.Atoi(value); err == nil {
 					*x = time.Duration(i) * time.Millisecond
-
 				}
 			}
 			return

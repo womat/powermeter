@@ -1,7 +1,6 @@
-package mbgw
+package s0counter
 
 import (
-	"encoding/binary"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -9,7 +8,6 @@ import (
 	"math"
 	"net/http"
 	"regexp"
-	"sort"
 	"strconv"
 	"strings"
 	"time"
@@ -28,25 +26,27 @@ const (
 	_float32
 )
 
-// ClientData stores receive data form modbus gateway
+// ClientData stores receive data form s0counter web request
 type ClientData struct {
-	Timestamp time.Time
-	Runtime   time.Duration
-	Register  map[uint16]uint16
+	Timestamp        time.Time `json:"TimeStamp"`
+	MeterReading     float64   `json:"MeterReading"`
+	UnitMeterReading string    `json:"UnitMeterReading"`
+	Flow             float64   `json:"Flow"`
+	UnitFlow         string    `json:"UnitFlow"`
 }
 
 // Client structure contains all Properties of a connection
 type Client struct {
 	connectionString string
 	timeout          time.Duration
-	deviceID         uint8
+	cacheTime        time.Duration
 	maxRetries       int
 	measurand        map[string]measurandParam
+	cache            map[string]ClientData
 }
 
 type measurandParam struct {
-	address     uint16
-	format      int
+	key, value  string
 	scaleFactor int
 }
 
@@ -54,20 +54,21 @@ type measurandParam struct {
 func NewClient() (c *Client) {
 	return &Client{
 		timeout:   time.Second,
-		deviceID:  1,
+		cacheTime: time.Second,
 		measurand: map[string]measurandParam{},
+		cache:     map[string]ClientData{},
 	}
 }
 
 func (c *Client) String() string {
-	return "modbus gateway"
+	return "s0counter"
 }
 
 // Listen starts the go function to receive data
 func (c *Client) Listen(connectionString string) (err error) {
 	getField(&c.connectionString, connectionString, "connection")
-	getField(&c.deviceID, connectionString, "deviceid")
 	getField(&c.timeout, connectionString, "timeout")
+	getField(&c.cacheTime, connectionString, "cachetime")
 	//TODO: change to auf retry?
 	getField(&c.maxRetries, connectionString, "maxretries")
 	return
@@ -75,12 +76,10 @@ func (c *Client) Listen(connectionString string) (err error) {
 
 func (c *Client) AddMeasurand(measurand map[string]string) {
 	for n, m := range measurand {
-		p := measurandParam{
-			format: _uint16,
-		}
-		getField(&p.address, m, "address")
+		p := measurandParam{}
+		getField(&p.key, m, "key")
+		getField(&p.value, m, "value")
 		getField(&p.scaleFactor, m, "sf")
-		getField(&p.format, m, "format")
 		c.measurand[n] = p
 	}
 }
@@ -93,94 +92,52 @@ func (c *Client) ListMeasurand() (names []string) {
 }
 
 func (c *Client) GetMeteredValue(measurand string) (e float64, err error) {
+	var data ClientData
 	var m measurandParam
 	var ok bool
+	var v float64
 
 	if m, ok = c.measurand[measurand]; !ok {
 		err = fmt.Errorf("unknow measurand: %v", measurand)
 		return
 	}
 
-	for retryCounter := 0; true; retryCounter++ {
-		var v float64
-		var register map[uint16]uint16
+	if _, ok := c.cache[m.key]; !ok || time.Now().After(c.cache[m.key].Timestamp.Add(c.cacheTime)) {
+		debug.DebugLog.Printf("key %q is not cached\n", m.key)
 
-		connectionString := fmt.Sprintf("%v/readholdingregisters?Address=%v&Quantity=%v", c.connectionString, m.address, quantity(m.format))
-		if register, err = c.get(connectionString); err != nil {
-			if retryCounter >= c.maxRetries {
-				debug.ErrorLog.Printf("error to receive client data: %v\n", err)
-				return
+		for retryCounter := 0; true; retryCounter++ {
+			if c.cache, err = c.get(c.connectionString); err != nil {
+				if retryCounter >= c.maxRetries {
+					debug.ErrorLog.Printf("error to receive client data: %v\n", err)
+					return
+				}
+
+				debug.WarningLog.Printf("error to receive client data: %v\n", err)
+				time.Sleep(c.timeout / 2)
+				continue
 			}
-
-			debug.WarningLog.Printf("error to receive client data: %v\n", err)
-			time.Sleep(c.timeout / 2)
-			continue
+			break
 		}
-
-		switch m.format {
-		case _sint16:
-			v = int16ToFloat64(register)
-		case _sint32:
-			v = int32ToFloat64(register)
-		case _sint64:
-			v = int64ToFloat64(register)
-		case _uint16:
-			v = uint16ToFloat64(register)
-		case _uint32:
-			v = uint32ToFloat64(register)
-		case _uint64:
-			v = uint64ToFloat64(register)
-		case _float32:
-			v = bitsToFloat64(register)
-		}
-		return v * math.Pow10(m.scaleFactor), nil
 	}
 
-	return
-}
-
-func uint16ToFloat64(r map[uint16]uint16) float64 {
-	return float64(binary.BigEndian.Uint16(getBytes(r)))
-}
-func uint32ToFloat64(r map[uint16]uint16) float64 {
-	return float64(binary.BigEndian.Uint32(getBytes(r)))
-}
-func uint64ToFloat64(r map[uint16]uint16) float64 {
-	return float64(binary.BigEndian.Uint64(getBytes(r)))
-}
-
-func int16ToFloat64(r map[uint16]uint16) float64 {
-	return float64(int16(uint16ToFloat64(r)))
-}
-func int32ToFloat64(r map[uint16]uint16) float64 {
-	return float64(int32(uint32ToFloat64(r)))
-}
-func int64ToFloat64(r map[uint16]uint16) float64 {
-	return float64(int64(uint64ToFloat64(r)))
-}
-
-func bitsToFloat64(r map[uint16]uint16) float64 {
-	return float64(math.Float32frombits(binary.BigEndian.Uint32(getBytes(r))))
-}
-
-func getBytes(r map[uint16]uint16) []byte {
-	b := make([]byte, len(r)*2)
-
-	keys := make([]int, 0, len(r))
-	for k := range r {
-		keys = append(keys, int(k))
-	}
-	sort.Ints(keys)
-
-	for i, k := range keys {
-		binary.BigEndian.PutUint16(b[i*2:i*2+2], r[uint16(k)])
+	if data, ok = c.cache[m.key]; !ok {
+		err = fmt.Errorf("unknow measurand: %v", measurand)
+		return
 	}
 
-	return b
+	switch m.value {
+	case "MeterReading":
+		v = data.MeterReading
+	case "Flow":
+		v = data.Flow
+	default:
+		err = fmt.Errorf("unknow measurand value: %v", measurand)
+		return
+	}
+	return v * math.Pow10(m.scaleFactor), nil
 }
 
-func (c *Client) get(connectionString string) (register map[uint16]uint16, err error) {
-	register = make(map[uint16]uint16)
+func (c *Client) get(connectionString string) (val map[string]ClientData, err error) {
 	done := make(chan bool, 1)
 
 	// fills register map with received values or set variable err with error information
@@ -204,30 +161,10 @@ func (c *Client) get(connectionString string) (register map[uint16]uint16, err e
 		bodyBytes, _ := ioutil.ReadAll(resp.Body)
 		_ = resp.Body.Close()
 
-		// Convert response body to result struct
-		type body struct {
-			Time       time.Time
-			Duration   int
-			Connection string
-			Data       struct {
-				Address, Quantity uint16
-				Data              string
-			}
-		}
-
-		var bodyStruct body
-		if err = json.Unmarshal(bodyBytes, &bodyStruct); err != nil {
+		if err = json.Unmarshal(bodyBytes, &val); err != nil {
 			return
 		}
-		debug.TraceLog.Printf("api response: %+v\n", bodyStruct)
-
-		for i := 0; i < int(bodyStruct.Data.Quantity); i++ {
-			var value uint64
-			if value, err = strconv.ParseUint(bodyStruct.Data.Data[i*4:i*4+4], 16, 16); err != nil {
-				return
-			}
-			register[bodyStruct.Data.Address+uint16(i)] = uint16(value)
-		}
+		debug.TraceLog.Printf("api response: %+v\n", val)
 	}()
 
 	// wait for API Data
@@ -236,6 +173,8 @@ func (c *Client) get(connectionString string) (register map[uint16]uint16, err e
 	case <-time.After(c.timeout):
 		err = errors.New("timeout during receive data")
 	}
+
+	debug.TraceLog.Printf("api response: %+v\n", val)
 	return
 }
 
@@ -249,7 +188,7 @@ func getField(v interface{}, connectionString, param string) {
 		fields := strings.Fields(connectionString)
 		for _, field := range fields {
 			// check if connection string is valid
-			//TODO: support dns names!
+			//TODO: support dns names
 			if regexp.MustCompile(`^https?://.*$`).MatchString(field) || regexp.MustCompile(`^[\d]{1,3}\.[\d]{1,3}\.[\d]{1,3}\.[\d]{1,3}:[\d]{1,5}$`).MatchString(field) {
 				switch x := v.(type) {
 				case *string:
@@ -318,16 +257,4 @@ func getField(v interface{}, connectionString, param string) {
 			return
 		}
 	}
-}
-
-func quantity(format int) int {
-	switch format {
-	case _sint16, _uint16:
-		return 1
-	case _sint32, _uint32:
-		return 2
-	case _sint64, _uint64:
-		return 4
-	}
-	return 0
 }

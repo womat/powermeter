@@ -6,8 +6,9 @@ import (
 	"strconv"
 	"time"
 
+	"github.com/womat/debug"
+
 	"powermeter/global"
-	"powermeter/pkg/debug"
 )
 
 type httpData struct {
@@ -47,7 +48,7 @@ func httpGetVersion(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusOK)
 	w.Header().Set("Content-Type", "application/json")
 	if _, err := w.Write([]byte(global.VERSION)); err != nil {
-		errorLog.Println(err)
+		debug.ErrorLog.Println(err)
 		return
 	}
 }
@@ -60,7 +61,7 @@ func httpReadMeter(w http.ResponseWriter, r *http.Request) {
 	meterName := r.RequestURI[1:]
 	meter, ok := global.AllMeters.Meter[meterName]
 	if !ok {
-		errorLog.Printf("invalid meter: %q\n", meterName)
+		debug.ErrorLog.Printf("invalid meter: %q\n", meterName)
 		return
 	}
 
@@ -78,14 +79,14 @@ func httpReadMeter(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if j, err = json.MarshalIndent(data, "", "  "); err != nil {
-		errorLog.Println(err)
+		debug.ErrorLog.Println(err)
 		return
 	}
 
 	w.WriteHeader(http.StatusOK)
 	w.Header().Set("Content-Type", "application/json")
 	if _, err = w.Write(j); err != nil {
-		errorLog.Println(err)
+		debug.ErrorLog.Println(err)
 		return
 	}
 }
@@ -113,14 +114,14 @@ func httpReadMeters(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if j, err = json.MarshalIndent(data, "", "  "); err != nil {
-		errorLog.Println(err)
+		debug.ErrorLog.Println(err)
 		return
 	}
 
 	w.WriteHeader(http.StatusOK)
 	w.Header().Set("Content-Type", "application/json")
 	if _, err := w.Write(j); err != nil {
-		errorLog.Println(err)
+		debug.ErrorLog.Println(err)
 		return
 	}
 }
@@ -137,14 +138,14 @@ func httpReadCurrentData(w http.ResponseWriter, r *http.Request) {
 	}()
 
 	if err != nil {
-		errorLog.Println(err)
+		debug.ErrorLog.Println(err)
 		return
 	}
 
 	w.WriteHeader(http.StatusOK)
 	w.Header().Set("Content-Type", "application/json")
 	if _, err = w.Write(j); err != nil {
-		errorLog.Println(err)
+		debug.ErrorLog.Println(err)
 		return
 	}
 }
