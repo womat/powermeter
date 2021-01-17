@@ -30,7 +30,7 @@ const (
 type Client struct {
 	connectionString string
 	timeout          time.Duration
-	deviceId         uint8
+	deviceID         uint8
 	maxRetries       int
 	measurand        map[string]measurandParam
 }
@@ -54,7 +54,7 @@ func (c *Client) String() string {
 // Listen starts the go function to receive data
 func (c *Client) Listen(connectionString string) (err error) {
 	getField(&c.connectionString, connectionString, "connection")
-	getField(&c.deviceId, connectionString, "deviceid")
+	getField(&c.deviceID, connectionString, "deviceid")
 	getField(&c.timeout, connectionString, "timeout")
 	//TODO: change to retry?
 	getField(&c.maxRetries, connectionString, "maxretries")
@@ -153,7 +153,7 @@ func (c *Client) get(address uint16, quantity int) (data []byte, err error) {
 		}()
 
 		clientHandler := modbus.NewTCPClientHandler(c.connectionString)
-		clientHandler.SlaveId = c.deviceId
+		clientHandler.SlaveId = c.deviceID
 
 		if err = clientHandler.Connect(); err != nil {
 			return
@@ -161,6 +161,8 @@ func (c *Client) get(address uint16, quantity int) (data []byte, err error) {
 		defer clientHandler.Close()
 
 		client := modbus.NewClient(clientHandler)
+
+		debug.DebugLog.Printf("performing get modbus connection: %v address: %v quantity: %v:\n", c.connectionString, address, quantity)
 		data, err = client.ReadHoldingRegisters(address, uint16(quantity))
 	}()
 

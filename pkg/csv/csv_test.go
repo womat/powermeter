@@ -5,13 +5,13 @@ import (
 	"log"
 	"os"
 	"path/filepath"
-	"powermeter/pkg/tools"
 	"testing"
 	"time"
+
+	"github.com/womat/tools"
 )
 
 func TestFloat2string(t *testing.T) {
-
 	type test struct {
 		f                float64
 		expect           string
@@ -41,7 +41,6 @@ func TestFloat2string(t *testing.T) {
 }
 
 func TestDate2string(t *testing.T) {
-
 	type test struct {
 		t          time.Time
 		expect     string
@@ -65,7 +64,6 @@ func TestDate2string(t *testing.T) {
 }
 
 func TestCSVOrg(t *testing.T) {
-
 	fileName := filepath.Join("C:\\temp", FileName("Energy_yyyymm.csv", time.Now()))
 	fileAlreadyExists := fileExists(fileName)
 	csvFile, err := os.OpenFile(fileName, os.O_APPEND|os.O_CREATE|os.O_RDWR, os.ModePerm)
@@ -74,7 +72,7 @@ func TestCSVOrg(t *testing.T) {
 	}
 	defer csvFile.Close()
 
-	records := [][]string{}
+	var records [][]string
 
 	if !fileAlreadyExists {
 		records = append(records, []string{"time", "S1", "S2"})
@@ -87,9 +85,8 @@ func TestCSVOrg(t *testing.T) {
 	w.WriteAll(records) // calls Flush internally
 
 	if err := w.Error(); err != nil {
-		log.Fatalln("error writing csv:", err)
+		log.Panicln("error writing csv:", err)
 	}
-	return
 }
 
 func TestCSV(t *testing.T) {
@@ -112,7 +109,6 @@ func TestCSV(t *testing.T) {
 
 	if err := c.WriteHeader(records); err != nil {
 		t.Fatalf("error write csv data %v\n", err)
-
 	}
 
 	records = []map[string]interface{}{
@@ -121,7 +117,6 @@ func TestCSV(t *testing.T) {
 
 	if err := c.Write(records); err != nil {
 		t.Fatalf("error write csv data %v\n", err)
-
 	}
 
 	c.Close()
@@ -136,8 +131,6 @@ func TestCSV(t *testing.T) {
 
 	if err := c.Write(records); err != nil {
 		t.Fatalf("error write csv data %v\n", err)
-
 	}
 	c.Close()
-
 }

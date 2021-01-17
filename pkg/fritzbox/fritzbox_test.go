@@ -31,8 +31,8 @@ func setup() {
 
 	client = NewClient(nil)
 	client.session = NewSession(client)
-	url, _ := url.Parse(server.URL)
-	client.BaseURL = url
+	u, _ := url.Parse(server.URL)
+	client.BaseURL = u
 }
 
 // teardown closes the test server

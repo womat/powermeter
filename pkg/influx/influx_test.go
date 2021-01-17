@@ -14,5 +14,4 @@ func TestNew(t *testing.T) {
 	r := []map[string]interface{}{{"f1": 1.2, "f2": "hallo"}, {"f1": 2.2, "f2": "hallo1"}}
 	_ = influxClient.Write(r)
 	influxClient.Close()
-
 }

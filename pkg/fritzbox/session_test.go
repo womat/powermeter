@@ -1,6 +1,7 @@
 package fritzbox
 
 import (
+	"errors"
 	"fmt"
 	"net/http"
 	"testing"
@@ -70,7 +71,6 @@ var testsAuth = []struct {
 }
 
 func TestSessionAuth(t *testing.T) {
-
 	for _, want := range testsAuth {
 		setup()
 		defer teardown()
@@ -95,7 +95,7 @@ func TestSessionAuth(t *testing.T) {
 
 		err := s.Auth("Username", want.Password)
 		if want.Error {
-			if err != ErrInvalidCred {
+			if !errors.Is(err, ErrInvalidCred) {
 				t.Error("Expected error to be returned")
 			}
 			if s.Sid != want.Sid {
@@ -109,7 +109,6 @@ func TestSessionAuth(t *testing.T) {
 				t.Errorf("SessionAuth Sid is %s, want %s", s.Sid, want.Sid)
 			}
 		}
-
 	}
 }
 
@@ -157,7 +156,6 @@ func TestRefresh(t *testing.T) {
 	if err := s.Refresh(); err == nil {
 		t.Error("Expected error to be returned")
 	}
-
 }
 
 // Responses test cases

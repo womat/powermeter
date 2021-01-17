@@ -21,6 +21,8 @@ import (
 )
 
 func main() {
+	debug.SetDebug(global.Config.Debug.File, global.Config.Debug.Flag)
+
 	if err := initMeter(); err != nil {
 		debug.ErrorLog.Println(err)
 		return
@@ -54,7 +56,7 @@ func initMeter() (err error) {
 		}
 
 		if err := global.AllMeters.Meter[meterName].Handler.Listen(meterConfig.Connection); err != nil {
-			return fmt.Errorf("error to start %v client %v: %v\n", global.AllMeters.Meter[meterName].Handler, meterConfig.Connection, err)
+			return fmt.Errorf("error to start %v client %v: %w", global.AllMeters.Meter[meterName].Handler, meterConfig.Connection, err)
 		}
 
 		global.AllMeters.Meter[meterName].Handler.AddMeasurand(meterConfig.Measurand)
@@ -103,7 +105,6 @@ func loop() {
 	func() {
 		global.AllMeters.Lock()
 		defer global.AllMeters.Unlock()
-		global.AllMeters.LastTime = global.AllMeters.Time
 		global.AllMeters.Time = time.Now()
 	}()
 

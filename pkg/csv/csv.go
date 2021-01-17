@@ -58,7 +58,7 @@ func (c *Writer) Open(fileName string) (err error) {
 		return
 	}
 
-	if err := c.getHeader(); err != nil && err != io.EOF {
+	if err := c.getHeader(); err != nil && !errors.Is(err, io.EOF) {
 		return err
 	}
 	c.writer = csv.NewWriter(c.file)
@@ -70,7 +70,7 @@ func (c *Writer) Close() error {
 }
 
 func (c *Writer) WriteHeader(records []map[string]interface{}) (err error) {
-	if err = c.WriteOnlyHeader(records[0]); err != nil && err != errorHeaderAlreadyExists {
+	if err = c.WriteOnlyHeader(records[0]); err != nil && !errors.Is(err, errorHeaderAlreadyExists) {
 		return err
 	}
 	return c.write(records)
@@ -157,7 +157,7 @@ func (c *Writer) IsNewFile() bool {
 	return c.isNewFile
 }
 
-//FileName create a formatted csv output file
+// FileName create a formatted csv output file
 func FileName(fmt string, t time.Time) (fileName string) {
 	fileName = t.Format(GoDateFormat.ConvertFormat(fmt))
 	return fileName
@@ -178,7 +178,7 @@ func date2string(fmt string, t time.Time) (s string) {
 
 func float2string(decimalSeparator rune, f interface{}) (s string) {
 	s = fmt.Sprintf("%f", f)
-	s = strings.Replace(s, ".", string(decimalSeparator), -1)
+	s = strings.ReplaceAll(s, ".", string(decimalSeparator))
 	return
 }
 
