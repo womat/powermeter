@@ -63,7 +63,7 @@ measurand:
   E:
     Energy: 'type:delta out:influx,csv'
     Power (avg): 'type:avg out:influx,csv'
-    Energy (Wh): 'type:value out:influx,csv'
+    Energy (Wh): 'type:value out:influx,csv excl:0'
   E_GRID:
     Energy to Grid: 'type:delta out:influx,csv'
     Energy to Grid (Wh): 'type:value out:influx,csv'
@@ -72,7 +72,7 @@ measurand:
   V:
     Liter: 'type:delta out:csv'
     Liter (avg): 'type:avg out:csv'
-    Liter (l): 'type:value out:csv'
+    Liter (l): 'type:value out:csv excl:0'
   Q:
     Liter (l/h): 'type:value out:csv'
 

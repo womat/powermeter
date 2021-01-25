@@ -10,8 +10,7 @@ import (
 	"time"
 
 	"github.com/womat/debug"
-
-	"powermeter/global"
+	"github.com/womat/tools"
 )
 
 // ClientData stores receive data form s0counter web request
@@ -54,20 +53,19 @@ func (c *Client) String() string {
 
 // Listen starts the go function to receive data
 func (c *Client) Listen(connectionString string) (err error) {
-	global.GetField(&c.connectionString, connectionString, "connection")
-	global.GetField(&c.timeout, connectionString, "timeout")
-	global.GetField(&c.cacheTime, connectionString, "cachetime")
-	//TODO: change to retry?
-	global.GetField(&c.maxRetries, connectionString, "maxretries")
+	_ = tools.GetField(&c.connectionString, connectionString, "connection")
+	_ = tools.GetField(&c.timeout, connectionString, "timeout")
+	_ = tools.GetField(&c.cacheTime, connectionString, "cachetime")
+	_ = tools.GetField(&c.maxRetries, connectionString, "maxretries")
 	return
 }
 
 func (c *Client) AddMeasurand(measurand map[string]string) {
 	for n, m := range measurand {
 		p := measurandParam{}
-		global.GetField(&p.key, m, "key")
-		global.GetField(&p.value, m, "value")
-		global.GetField(&p.scaleFactor, m, "sf")
+		_ = tools.GetField(&p.key, m, "key")
+		_ = tools.GetField(&p.value, m, "value")
+		_ = tools.GetField(&p.scaleFactor, m, "sf")
 		c.measurand[n] = p
 	}
 }

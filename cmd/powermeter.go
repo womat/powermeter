@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/womat/debug"
+	"github.com/womat/tools"
 
 	"powermeter/global"
 	_ "powermeter/pkg/config"
@@ -142,6 +143,8 @@ func getField(v interface{}, connectionString, param string) {
 		case *uint8:
 			i, _ := strconv.Atoi(value)
 			*x = uint8(i)
+		case *float64:
+			*x, _ = strconv.ParseFloat(value, 32)
 		case *time.Duration:
 			*x = time.Second
 			if i, err := strconv.Atoi(value); err == nil {
@@ -181,17 +184,25 @@ func WriteToInflux(m *global.Meters, config *global.Configuration) error {
 				for n, cfgRecord := range cfgRecords {
 					var out string
 					getField(&out, cfgRecord, "out")
+
 					if isIn("influx", out) {
 						var t string
+						var f float64
 						getField(&t, cfgRecord, "type")
 
 						switch t {
 						case "value":
-							record[n] = measurand.Value
+							f = measurand.Value
 						case "delta":
-							record[n] = measurand.Delta
+							f = measurand.Delta
 						case "avg":
-							record[n] = measurand.Avg
+							f = measurand.Avg
+						}
+
+						var e string
+						getField(&e, cfgRecord, "exclude")
+						if !(tools.In(e, "0") && f == 0) {
+							record[n] = f
 						}
 					}
 				}

@@ -5,5 +5,4 @@ import (
 )
 
 func TestInit(t *testing.T) {
-
 }
