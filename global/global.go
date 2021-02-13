@@ -19,7 +19,7 @@ import (
 // VERSION differs from semantic versioning as described in https://semver.org/
 // but we keep the correct syntax.
 //TODO: increase version number to 1.0.1+2020xxyy
-const VERSION = "1.0.6+20210125"
+const VERSION = "1.0.7+20210213"
 const MODULE = "powermeter"
 
 type DebugConf struct {

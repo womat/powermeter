@@ -199,11 +199,14 @@ func WriteToInflux(m *global.Meters, config *global.Configuration) error {
 							f = measurand.Avg
 						}
 
-						var e string
-						getField(&e, cfgRecord, "exclude")
-						if !(tools.In(e, "0") && f == 0) {
-							record[n] = f
+						if f == 0 && func() bool {
+							var e string
+							getField(&e, cfgRecord, "exclude")
+							return tools.In(e, "0")
+						}() {
+							continue
 						}
+						record[n] = f
 					}
 				}
 			}
