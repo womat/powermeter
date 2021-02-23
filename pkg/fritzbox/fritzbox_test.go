@@ -2,7 +2,7 @@ package fritzbox
 
 import (
 	"fmt"
-	"io/ioutil"
+	"io"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
@@ -61,7 +61,7 @@ func TestNewRequest(t *testing.T) {
 	if got, want := req.URL.String(), outURL; got != want {
 		t.Errorf("NewRequest(%q) URL is %v, want %v", inURL, got, want)
 	}
-	body, _ := ioutil.ReadAll(req.Body)
+	body, _ := io.ReadAll(req.Body)
 	if got, want := string(body), outData; got != want {
 		t.Errorf("NewRequest(%q) Query is %v, want %v", inData, got, want)
 	}

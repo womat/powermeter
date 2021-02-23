@@ -5,7 +5,6 @@ import (
 	"encoding/xml"
 	"errors"
 	"io"
-	"io/ioutil"
 	"net/http"
 	"net/url"
 	"strconv"
@@ -120,7 +119,7 @@ func (c *Client) Do(req *http.Request, v interface{}) (resp *http.Response, err 
 			err = json.NewDecoder(resp.Body).Decode(v)
 		}
 		if strings.Contains(contentType, "text/plain") {
-			body, e := ioutil.ReadAll(resp.Body)
+			body, e := io.ReadAll(resp.Body)
 			if e != nil {
 				return resp, e
 			}

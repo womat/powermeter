@@ -4,7 +4,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"io/ioutil"
+	"io"
 	"math"
 	"net/http"
 	"time"
@@ -147,7 +147,7 @@ func (c *Client) get(connectionString string) (val map[string]ClientData, err er
 			return
 		}
 
-		bodyBytes, _ := ioutil.ReadAll(resp.Body)
+		bodyBytes, _ := io.ReadAll(resp.Body)
 		_ = resp.Body.Close()
 
 		if err = json.Unmarshal(bodyBytes, &val); err != nil {

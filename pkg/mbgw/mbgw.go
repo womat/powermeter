@@ -5,7 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"io/ioutil"
+	"io"
 	"math"
 	"net/http"
 	"regexp"
@@ -201,7 +201,7 @@ func (c *Client) get(connectionString string) (register map[uint16]uint16, err e
 			return
 		}
 
-		bodyBytes, _ := ioutil.ReadAll(resp.Body)
+		bodyBytes, _ := io.ReadAll(resp.Body)
 		_ = resp.Body.Close()
 
 		// Convert response body to result struct
