@@ -19,7 +19,7 @@ import (
 // VERSION differs from semantic versioning as described in https://semver.org/
 // but we keep the correct syntax.
 //TODO: increase version number to 1.0.1+2020xxyy
-const VERSION = "1.0.7+20210213"
+const VERSION = "1.1.0+20210610"
 const MODULE = "powermeter"
 
 type DebugConf struct {
@@ -35,10 +35,15 @@ type RegisterConf struct {
 	Value   interface{}
 }
 
+type MqttTopic struct {
+	Topic string
+}
+
 type Meter struct {
 	Type       string
 	Connection string
 	Measurand  map[string]string
+	Mqtt       MqttTopic
 }
 
 type WebserverConf struct {
@@ -56,11 +61,15 @@ type CsvConf struct {
 }
 
 type InfluxConf struct {
-	ServerURL string
-	User      string
-	Password  string
-	Location  string
-	Database  string
+	URL      string
+	User     string
+	Password string
+	Location string
+	Database string
+}
+
+type Mqtt struct {
+	URL string
 }
 
 type Configuration struct {
@@ -71,6 +80,7 @@ type Configuration struct {
 	Webserver   WebserverConf
 	Csv         CsvConf
 	Influx      InfluxConf
+	Mqtt        Mqtt
 }
 
 type Value struct {
@@ -103,6 +113,7 @@ func init() {
 		Meter:     map[string]Meter{},
 		Measurand: map[string]map[string]string{},
 		Webserver: WebserverConf{Webservices: map[string]bool{}},
+		Mqtt:      Mqtt{},
 	}
 
 	AllMeters = Meters{Meter: map[string]*MeteR{}}

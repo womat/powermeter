@@ -36,7 +36,7 @@ meter:
       P: 'address:4116 uint32 sf:-2'
   dryer:
     type: fritz!powerline
-    connection: http://fritz.box ain:116570149698 username:smarthome password:7Wl6UW5TsOr5Ba6uMbOO timeout:2000 maxretries:3
+    connection: http://fritz.box ain:116570149698 username:smarthome password:xxxxx timeout:2000 maxretries:3
     measurand:
       E: 'command:getswitchenergy'
       P: 'command:getswitchpower sf:-3'
@@ -63,12 +63,13 @@ measurand:
   E:
     Energy: 'type:delta out:influx,csv'
     Power (avg): 'type:avg out:influx,csv'
-    Energy (Wh): 'type:value out:influx,csv exclude:0'
+    Energy (Wh): 'type:value out:influx,csv,mqtt exclude:0'
   E_GRID:
     Energy to Grid: 'type:delta out:influx,csv'
-    Energy to Grid (Wh): 'type:value out:influx,csv'
+    Power to Grid (avg): 'type:avg out:'
+    Energy to Grid (Wh): 'type:value out:influx,csv,mqtt'
   P:
-    Power (W): 'type:value out:csv'
+    Power (W): 'type:value out:csv,mqtt'
   V:
     Liter: 'type:delta out:csv'
     Liter (avg): 'type:avg out:csv'

@@ -28,11 +28,13 @@ func init() {
 			Type       string
 			Connection string
 			Measurand  map[string]string
+			Mqtt       global.MqttTopic
 		}
 		Measurand map[string]map[string]string
 		Webserver global.WebserverConf
 		Csv       global.CsvConf
 		Influx    global.InfluxConf
+		Mqtt      global.Mqtt
 	}
 
 	var configFile yamlStruct
@@ -101,6 +103,7 @@ func init() {
 			Type:       meter.Type,
 			Connection: meter.Connection,
 			Measurand:  meter.Measurand,
+			Mqtt:       meter.Mqtt,
 		}
 	}
 
@@ -116,4 +119,5 @@ func init() {
 	global.Config.Csv = configFile.Csv
 	global.Config.Influx = configFile.Influx
 	global.Config.Webserver = configFile.Webserver
+	global.Config.Mqtt = configFile.Mqtt
 }
