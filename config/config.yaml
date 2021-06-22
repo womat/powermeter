@@ -12,7 +12,7 @@ debug:
 meter:
   # key >> name of device
   #   type: mbclient | mbgateway | fritz!powerline
-  #   connection: connectionstring eg: TCP 192.168.65.197:502  DeviceId:1 Timeout:500 (timeout in ms (default 1000ms)
+  #   connection: connection string eg: TCP 192.168.65.197:502  DeviceId:1 Timeout:500 (timeout in ms (default 1000ms)
   primarymeter:
     type: mbclient
     #    connection: tcp smartfox.fritz.box:502 deviceid:1 maxretries:3 timeout:1000
@@ -50,8 +50,8 @@ meter:
     type: s0counter
     connection: http://water:4000/currentdata timeout:1000 maxretries:3 cache:1000
     measurand:
-      V: 'key:portablewater value:MeterReading sf:3'
-      Q: 'key:portablewater value:Flow sf:0'
+      V: 'key:portablewater value:Counter sf:3'
+      Q: 'key:portablewater value:Gauge sf:0'
   inverter:
     type: mbclient
     #    connection: tcp fronius.fritz.box:502 deviceid:1 maxretries:3 timeout:1000
