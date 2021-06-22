@@ -3,6 +3,7 @@ package main
 import (
 	"fmt"
 	"path"
+	"powermeter/pkg/s0counter2"
 	"strconv"
 	"strings"
 	"time"
@@ -51,6 +52,9 @@ func initMeter() (err error) {
 			global.AllMeters.Meter[meterName] = &global.MeteR{Measurand: map[string]*global.Value{}, Handler: c}
 		case "s0counter":
 			c := s0counter.NewClient()
+			global.AllMeters.Meter[meterName] = &global.MeteR{Measurand: map[string]*global.Value{}, Handler: c}
+		case "s0counter2":
+			c := s0counter2.NewClient()
 			global.AllMeters.Meter[meterName] = &global.MeteR{Measurand: map[string]*global.Value{}, Handler: c}
 		default:
 			debug.WarningLog.Printf("client type %q is not supported\n", t)

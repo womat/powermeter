@@ -42,7 +42,7 @@ meter:
       P: 'command:getswitchpower sf:-3'
   wallbox:
     type: s0counter
-    connection: http://wallbox:4000/currentdata timeout:1000 maxretries:3 cache:1000
+    connection: http://wallbox:1880/currentdata timeout:1000 maxretries:3 cache:1000
     measurand:
       E: 'key:wallbox value:MeterReading sf:3'
       P: 'key:wallbox value:Flow sf:3'
@@ -50,8 +50,8 @@ meter:
     type: s0counter
     connection: http://water:4000/currentdata timeout:1000 maxretries:3 cache:1000
     measurand:
-      V: 'key:portablewater value:MeterReading sf:3'
-      Q: 'key:portablewater value:Flow sf:0'
+      V: 'key:portablewater value:Counter sf:3'
+      Q: 'key:portablewater value:Gauge sf:0'
   inverter:
     type: mbclient
     #    connection: tcp fronius.fritz.box:502 deviceid:1 maxretries:3 timeout:1000
