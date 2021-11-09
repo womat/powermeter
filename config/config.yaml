@@ -36,7 +36,7 @@ meter:
       P: 'address:4116 uint32 sf:-2'
   dryer:
     type: fritz!powerline
-    connection: http://fritz.box ain:116570149698 username:smarthome password:7Wl6UW5TsOr5Ba6uMbOO timeout:2000 maxretries:3
+    connection: http://fritz.box ain:116570149698 username:smarthome password:xxxxxxxxxx timeout:2000 maxretries:3
     measurand:
       E: 'command:getswitchenergy'
       P: 'command:getswitchpower sf:-3'
